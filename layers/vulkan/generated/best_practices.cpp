@@ -838,7 +838,11 @@ void BestPractices::PostCallRecordCreatePrivateDataSlot(
 void BestPractices::PostCallRecordSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data,
     VkResult                                    result) {
@@ -2658,7 +2662,11 @@ void BestPractices::PostCallRecordCreatePrivateDataSlotEXT(
 void BestPractices::PostCallRecordSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data,
     VkResult                                    result) {

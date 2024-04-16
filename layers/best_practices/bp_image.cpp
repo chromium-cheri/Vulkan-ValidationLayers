@@ -26,7 +26,11 @@ bool BestPractices::PreCallValidateCreateImage(VkDevice device, const VkImageCre
 
     if ((pCreateInfo->queueFamilyIndexCount > 1) && (pCreateInfo->sharingMode == VK_SHARING_MODE_EXCLUSIVE)) {
         std::stringstream image_hex;
+#if defined(__CHERI_PURE_CAPABILITY__)
+        image_hex << "0x" << std::hex << HandleToUintPtr(pImage);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         image_hex << "0x" << std::hex << HandleToUint64(pImage);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
         skip |=
             LogWarning(device, kVUID_BestPractices_SharingModeExclusive,
@@ -87,7 +91,11 @@ bool BestPractices::PreCallValidateCreateImage(VkDevice device, const VkImageCre
 
     if (VendorCheckEnabled(kBPVendorAMD)) {
         std::stringstream image_hex;
+#if defined(__CHERI_PURE_CAPABILITY__)
+        image_hex << "0x" << std::hex << HandleToUintPtr(pImage);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         image_hex << "0x" << std::hex << HandleToUint64(pImage);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
         if ((pCreateInfo->usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
             (pCreateInfo->sharingMode == VK_SHARING_MODE_CONCURRENT)) {
@@ -121,7 +129,11 @@ bool BestPractices::PreCallValidateCreateImage(VkDevice device, const VkImageCre
 
     if (VendorCheckEnabled(kBPVendorNVIDIA)) {
         std::stringstream image_hex;
+#if defined(__CHERI_PURE_CAPABILITY__)
+        image_hex << "0x" << std::hex << HandleToUintPtr(pImage);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         image_hex << "0x" << std::hex << HandleToUint64(pImage);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
         if (pCreateInfo->tiling == VK_IMAGE_TILING_LINEAR) {
             skip |= LogPerformanceWarning(device, kVUID_BestPractices_CreateImage_TilingLinear,

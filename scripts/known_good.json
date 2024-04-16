@@ -14,11 +14,11 @@
         {
             "name": "Vulkan-Headers",
             "api": "vulkan",
-            "url": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+            "url": "https://github.com/chromium-cheri/Vulkan-Headers.git",
             "sub_dir": "Vulkan-Headers",
             "build_dir": "Vulkan-Headers/build",
             "install_dir": "Vulkan-Headers/build/install",
-            "commit": "v1.3.250"
+            "commit": "baf6b7cc8fa2080e59398f39dfcd343ca95d3bf7"
         },
         {
             "name": "SPIRV-Headers",
@@ -30,7 +30,7 @@
         },
         {
             "name": "SPIRV-Tools",
-            "url": "https://github.com/KhronosGroup/SPIRV-Tools.git",
+            "url": "https://github.com/chromium-cheri/SPIRV-Tools.git",
             "sub_dir": "SPIRV-Tools",
             "build_dir": "SPIRV-Tools/build",
             "install_dir": "SPIRV-Tools/build/install",
@@ -38,7 +38,7 @@
                 "-DSPIRV-Headers_SOURCE_DIR={repo_dir}/../SPIRV-Headers",
                 "-DSPIRV_WERROR=OFF"
             ],
-            "commit": "e7c6084fd1d6d6f5ac393e842728d8be309688ca"
+            "commit": "6cda1525981c4d4e58a4a4ff30f6749d1a8d428c"
         },
         {
             "name": "robin-hood-hashing",

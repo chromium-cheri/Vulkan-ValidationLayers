@@ -54,8 +54,11 @@ vvl_bit_cast(const From &src) noexcept {
 }
 
 // Ensure that the size changing casts are *static* to ensure portability
+#if defined(__CHERI_PURE_CAPABILITY__)
 template <typename HandleType>
-static inline HandleType CastFromUint64(uint64_t untyped_handle) {
+static inline HandleType CastFromUint64(uint64_t untyped_handle,
+    typename std::enable_if<std::is_integral<HandleType>::value &&
+    !std::is_same<HandleType, uintptr_t>::value >::type* = 0) {
     static_assert(sizeof(HandleType) <= sizeof(uint64_t), "HandleType must be not larger than the untyped handle size");
     typedef
         typename std::conditional<sizeof(HandleType) == sizeof(uint8_t), uint8_t,
@@ -66,6 +69,45 @@ static inline HandleType CastFromUint64(uint64_t untyped_handle) {
 }
 
 template <typename HandleType>
+static inline HandleType CastFromUint64(uint64_t untyped_handle,
+    typename std::enable_if<std::is_same<HandleType, uintptr_t>::value >::type* = 0) {
+    return static_cast<HandleType>(untyped_handle);
+}
+
+template <typename HandleType>
+static inline HandleType CastFromUintPtr(uintptr_t untyped_handle) { //,
+//    typename std::enable_if<std::is_pointer<HandleType>::value >::type* = 0) {
+    return reinterpret_cast<HandleType>(untyped_handle);
+}
+#else // defined(__CHERI_PURE_CAPABILITY__)
+template <typename HandleType>
+static inline HandleType CastFromUint64(uint64_t untyped_handle) {
+    static_assert(sizeof(HandleType) <= sizeof(uint64_t), "HandleType must be not larger than the untyped handle size");
+    typedef
+        typename std::conditional<sizeof(HandleType) == sizeof(uint8_t), uint8_t,
+                                  typename std::conditional<sizeof(HandleType) == sizeof(uint16_t), uint16_t,
+                                                            typename std::conditional<sizeof(HandleType) == sizeof(uint32_t),
+                                                                                      uint32_t, uint64_t>::type>::type>::type Uint;
+    return CastFromUint<HandleType, Uint>(static_cast<Uint>(untyped_handle));
+}
+#endif // defined(__CHERI_PURE_CAPABILITY__)
+
+#if defined(__CHERI_PURE_CAPABILITY__)
+template <typename T>
+inline uintptr_t CastToUintPtr(T handle) {
+    //typename std::enable_if<std::is_pointer<T>::value >::type* = 0) {
+    return reinterpret_cast<uintptr_t>(handle);
+}
+// Convenience functions to case between handles and the types the handles abstract, reflecting the Vulkan handle scheme, where
+// Handles are either pointers (dispatchable) or sizeof(uint64_t) (non-dispatchable), s.t. full size-safe casts are used and
+// we ensure that handles are large enough to contain the underlying type.
+template <typename HandleType, typename ValueType>
+void CastToHandle(ValueType value, HandleType *handle) {
+    static_assert(sizeof(HandleType) >= sizeof(ValueType), "HandleType must large enough to hold internal value");
+    *handle = CastFromUintPtr<HandleType>(CastToUintPtr<ValueType>(value));
+}
+#else // defined(__CHERI_PURE_CAPABILITY__)
+template <typename HandleType>
 static inline uint64_t CastToUint64(HandleType handle) {
     static_assert(sizeof(HandleType) <= sizeof(uint64_t), "HandleType must be not larger than the untyped handle size");
     typedef
@@ -75,7 +117,6 @@ static inline uint64_t CastToUint64(HandleType handle) {
                                                                                       uint32_t, uint64_t>::type>::type>::type Uint;
     return static_cast<uint64_t>(CastToUint<HandleType, Uint>(handle));
 }
-
 // Convenience functions to case between handles and the types the handles abstract, reflecting the Vulkan handle scheme, where
 // Handles are either pointers (dispatchable) or sizeof(uint64_t) (non-dispatchable), s.t. full size-safe casts are used and
 // we ensure that handles are large enough to contain the underlying type.
@@ -84,6 +125,7 @@ void CastToHandle(ValueType value, HandleType *handle) {
     static_assert(sizeof(HandleType) >= sizeof(ValueType), "HandleType must large enough to hold internal value");
     *handle = CastFromUint64<HandleType>(CastToUint64<ValueType>(value));
 }
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 // This form is conveniently "inline", you should only need to specify the handle type (the value type being deducible from the arg)
 template <typename HandleType, typename ValueType>
 HandleType CastToHandle(ValueType value) {
@@ -95,7 +137,11 @@ HandleType CastToHandle(ValueType value) {
 template <typename ValueType, typename HandleType>
 void CastFromHandle(HandleType handle, ValueType *value) {
     static_assert(sizeof(HandleType) >= sizeof(ValueType), "HandleType must large enough to hold internal value");
+#if defined(__CHERI_PURE_CAPABILITY__)
+    *value = CastFromUintPtr<ValueType>(CastToUintPtr<HandleType>(handle));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     *value = CastFromUint64<ValueType>(CastToUint64<HandleType>(handle));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 }
 template <typename ValueType, typename HandleType>
 ValueType CastFromHandle(HandleType handle) {

@@ -33,7 +33,11 @@ inline bool operator==(const VulkanTypedHandle &a, const VulkanTypedHandle &b) n
 namespace std {
 template <>
 struct hash<VulkanTypedHandle> {
+#if defined(__CHERI_PURE_CAPABILITY__)
+    size_t operator()(VulkanTypedHandle obj) const noexcept { return hash<uintptr_t>()(obj.handle) ^ hash<uint32_t>()(obj.type); }
+#else // defined(__CHERI_PURE_CAPABILITY__)
     size_t operator()(VulkanTypedHandle obj) const noexcept { return hash<uint64_t>()(obj.handle) ^ hash<uint32_t>()(obj.type); }
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 };
 }  // namespace std
 

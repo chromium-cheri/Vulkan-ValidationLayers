@@ -848,13 +848,21 @@ bool PreCallValidateDestroyPrivateDataSlot(
 bool PreCallValidateSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) const override;
 bool PreCallValidateGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) const override;
 bool PreCallValidateCmdSetEvent2(
@@ -2262,13 +2270,21 @@ bool PreCallValidateDestroyPrivateDataSlotEXT(
 bool PreCallValidateSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) const override;
 bool PreCallValidateGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) const override;
 #ifdef VK_USE_PLATFORM_METAL_EXT

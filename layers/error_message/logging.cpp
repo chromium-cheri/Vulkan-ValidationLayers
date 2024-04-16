@@ -44,7 +44,11 @@ VKAPI_ATTR void SetDebugUtilsSeverityFlags(std::vector<VkLayerDbgFunctionState> 
 }
 
 VKAPI_ATTR void RemoveDebugUtilsCallback(debug_report_data *debug_data, std::vector<VkLayerDbgFunctionState> &callbacks,
+#if defined(__CHERI_PURE_CAPABILITY__)
+                                            uintptr_t callback) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
                                             uint64_t callback) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto item = callbacks.begin();
     for (item = callbacks.begin(); item != callbacks.end(); item++) {
         if (item->IsUtils()) {
@@ -465,7 +469,11 @@ VKAPI_ATTR VkBool32 VKAPI_CALL MessengerLogCallback(VkDebugUtilsMessageSeverityF
     msg_buffer << "    Objects: " << callback_data->objectCount << "\n";
     for (uint32_t obj = 0; obj < callback_data->objectCount; ++obj) {
         msg_buffer << "        [" << obj << "] " << std::hex << std::showbase
+#if defined(__CHERI_PURE_CAPABILITY__)
+            << HandleToUintPtr(callback_data->pObjects[obj].objectHandle) << ", type: " << std::dec << std::noshowbase
+#else // defined(__CHERI_PURE_CAPABILITY__)
             << HandleToUint64(callback_data->pObjects[obj].objectHandle) << ", type: " << std::dec << std::noshowbase
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             << callback_data->pObjects[obj].objectType
             << ", name: " << (callback_data->pObjects[obj].pObjectName ? callback_data->pObjects[obj].pObjectName : "NULL")
             << "\n";
@@ -499,7 +507,11 @@ VKAPI_ATTR VkBool32 VKAPI_CALL MessengerWin32DebugOutputMsg(VkDebugUtilsMessageS
 
     for (uint32_t obj = 0; obj < callback_data->objectCount; ++obj) {
         msg_buffer << "       [" << obj << "]  " << std::hex << std::showbase
+#if defined(__CHERI_PURE_CAPABILITY__)
+                   << HandleToUintPtr(callback_data->pObjects[obj].objectHandle) << ", type: " << std::dec << std::noshowbase
+#else // defined(__CHERI_PURE_CAPABILITY__)
                    << HandleToUint64(callback_data->pObjects[obj].objectHandle) << ", type: " << std::dec << std::noshowbase
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                    << callback_data->pObjects[obj].objectType
                    << ", name: " << (callback_data->pObjects[obj].pObjectName ? callback_data->pObjects[obj].pObjectName : "NULL")
                    << "\n";

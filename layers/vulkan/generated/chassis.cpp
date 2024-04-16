@@ -32,10 +32,18 @@
 small_unordered_map<void*, ValidationObject*, 2> layer_data_map;
 
 // Global unique object identifier.
+#if defined(__CHERI_PURE_CAPABILITY__)
+std::atomic<uintptr_t> global_unique_id(1);
+#else // defined(__CHERI_PURE_CAPABILITY__)
 std::atomic<uint64_t> global_unique_id(1ULL);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 // Map uniqueID to actual object handle. Accesses to the map itself are
 // internally synchronized.
+#if defined(__CHERI_PURE_CAPABILITY__)
+vl_concurrent_unordered_map<uintptr_t, uintptr_t, 4, HashedUintPtr> unique_id_mapping;
+#else // defined(__CHERI_PURE_CAPABILITY__)
 vl_concurrent_unordered_map<uint64_t, uint64_t, 4, HashedUint64> unique_id_mapping;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
 bool wrap_handles = true;
 

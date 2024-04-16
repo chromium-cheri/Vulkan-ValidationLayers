@@ -2019,7 +2019,12 @@ TEST_F(NegativeRayTracing, CmdCopyAccelerationStructureToMemoryKHR) {
     constexpr intptr_t alignment_padding = 256 - 1;
     int8_t output[buffer_size + alignment_padding];
     VkDeviceOrHostAddressKHR output_data;
+#if __has_builtin(__builtin_align_down)
+    constexpr intptr_t alignment = 256;
+    output_data.hostAddress = __builtin_align_down(output, alignment);
+#else // __has__builtin(__builtin_align_down)
     output_data.hostAddress = reinterpret_cast<void *>(((intptr_t)output + alignment_padding) & ~alignment_padding);
+#endif // __has__builtin(__builtin_align_down)
     auto copy_info = LvlInitStruct<VkCopyAccelerationStructureToMemoryInfoKHR>();
     copy_info.src = as;
     copy_info.dst = output_data;

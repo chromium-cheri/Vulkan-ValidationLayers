@@ -666,8 +666,13 @@ VkResult CoreChecks::CoreLayerMergeValidationCachesEXT(VkDevice device, VkValida
         auto src = CastFromHandle<const ValidationCache *>(pSrcCaches[i]);
         if (src == dst) {
             skip |= LogError(device, "VUID-vkMergeValidationCachesEXT-dstCache-01536",
+#if defined(__CHERI_PURE_CAPABILITY__)
+                             "vkMergeValidationCachesEXT: dstCache (0x%" PRIxPTR ") must not appear in pSrcCaches array.",
+                             HandleToUintPtr(dstCache));
+#else // defined(__CHERI_PURE_CAPABILITY__)
                              "vkMergeValidationCachesEXT: dstCache (0x%" PRIx64 ") must not appear in pSrcCaches array.",
                              HandleToUint64(dstCache));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             result = VK_ERROR_VALIDATION_FAILED_EXT;
         }
         if (!skip) {

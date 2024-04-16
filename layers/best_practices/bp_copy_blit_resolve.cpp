@@ -587,8 +587,11 @@ bool BestPractices::PreCallValidateCmdCopyImage(VkCommandBuffer commandBuffer, V
     bool skip = false;
     std::stringstream src_image_hex;
     std::stringstream dst_image_hex;
-    src_image_hex << "0x" << std::hex << HandleToUint64(srcImage);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    src_image_hex << "0x" << std::hex << HandleToUintPtr(srcImage);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     dst_image_hex << "0x" << std::hex << HandleToUint64(dstImage);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
     if (VendorCheckEnabled(kBPVendorAMD)) {
         auto src_state = Get<IMAGE_STATE>(srcImage);

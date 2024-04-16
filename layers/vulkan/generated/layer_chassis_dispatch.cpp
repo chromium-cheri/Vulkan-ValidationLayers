@@ -542,7 +542,11 @@ VkResult DispatchCreateRenderPass2(VkDevice device, const VkRenderPassCreateInfo
 void DispatchDestroyRenderPass(VkDevice device, VkRenderPass renderPass, const VkAllocationCallbacks *pAllocator) {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyRenderPass(device, renderPass, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t renderPass_id = CastToUintPtr(renderPass);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t renderPass_id = CastToUint64(renderPass);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
     auto iter = unique_id_mapping.pop(renderPass_id);
     if (iter != unique_id_mapping.end()) {
@@ -644,12 +648,20 @@ void DispatchDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, cons
 
     auto &image_array = layer_data->swapchain_wrapped_image_handle_map[swapchain];
     for (auto &image_handle : image_array) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        unique_id_mapping.erase(HandleToUintPtr(image_handle));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         unique_id_mapping.erase(HandleToUint64(image_handle));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     }
     layer_data->swapchain_wrapped_image_handle_map.erase(swapchain);
     lock.unlock();
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t swapchain_id = HandleToUintPtr(swapchain);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t swapchain_id = HandleToUint64(swapchain);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
     auto iter = unique_id_mapping.pop(swapchain_id);
     if (iter != unique_id_mapping.end()) {
@@ -701,12 +713,20 @@ void DispatchDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorP
 
     // remove references to implicitly freed descriptor sets
     for(auto descriptor_set : layer_data->pool_descriptor_sets_map[descriptorPool]) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        unique_id_mapping.erase(CastToUintPtr(descriptor_set));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         unique_id_mapping.erase(CastToUint64(descriptor_set));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     }
     layer_data->pool_descriptor_sets_map.erase(descriptorPool);
     lock.unlock();
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t descriptorPool_id = CastToUintPtr(descriptorPool);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t descriptorPool_id = CastToUint64(descriptorPool);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
     auto iter = unique_id_mapping.pop(descriptorPool_id);
     if (iter != unique_id_mapping.end()) {
@@ -730,7 +750,11 @@ VkResult DispatchResetDescriptorPool(VkDevice device, VkDescriptorPool descripto
         WriteLockGuard lock(dispatch_lock);
         // remove references to implicitly freed descriptor sets
         for(auto descriptor_set : layer_data->pool_descriptor_sets_map[descriptorPool]) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+            unique_id_mapping.erase(CastToUintPtr(descriptor_set));
+#else // defined(__CHERI_PURE_CAPABILITY__)
             unique_id_mapping.erase(CastToUint64(descriptor_set));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         }
         layer_data->pool_descriptor_sets_map[descriptorPool].clear();
     }
@@ -797,7 +821,11 @@ VkResult DispatchFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptor
         for (uint32_t index0 = 0; index0 < descriptorSetCount; index0++) {
             VkDescriptorSet handle = pDescriptorSets[index0];
             pool_descriptor_sets.erase(handle);
+#if defined(__CHERI_PURE_CAPABILITY__)
+            uintptr_t unique_id = CastToUintPtr(handle);
+#else // defined(__CHERI_PURE_CAPABILITY__)
             uint64_t unique_id = CastToUint64(handle);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             unique_id_mapping.erase(unique_id);
         }
     }
@@ -882,7 +910,11 @@ void DispatchDestroyDescriptorUpdateTemplate(VkDevice device, VkDescriptorUpdate
     if (!wrap_handles)
         return layer_data->device_dispatch_table.DestroyDescriptorUpdateTemplate(device, descriptorUpdateTemplate, pAllocator);
     WriteLockGuard lock(dispatch_lock);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t descriptor_update_template_id = CastToUintPtr(descriptorUpdateTemplate);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t descriptor_update_template_id = CastToUint64(descriptorUpdateTemplate);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     layer_data->desc_template_createinfo_map.erase(descriptor_update_template_id);
     lock.unlock();
 
@@ -903,7 +935,11 @@ void DispatchDestroyDescriptorUpdateTemplateKHR(VkDevice device, VkDescriptorUpd
     if (!wrap_handles)
         return layer_data->device_dispatch_table.DestroyDescriptorUpdateTemplateKHR(device, descriptorUpdateTemplate, pAllocator);
     WriteLockGuard lock(dispatch_lock);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t descriptor_update_template_id = CastToUintPtr(descriptorUpdateTemplate);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t descriptor_update_template_id = CastToUint64(descriptorUpdateTemplate);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     layer_data->desc_template_createinfo_map.erase(descriptor_update_template_id);
     lock.unlock();
 
@@ -917,11 +953,19 @@ void DispatchDestroyDescriptorUpdateTemplateKHR(VkDevice device, VkDescriptorUpd
     layer_data->device_dispatch_table.DestroyDescriptorUpdateTemplateKHR(device, descriptorUpdateTemplate, pAllocator);
 }
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+void *BuildUnwrappedUpdateTemplateBuffer(ValidationObject *layer_data, uintptr_t descriptorUpdateTemplate, const void *pData) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
 void *BuildUnwrappedUpdateTemplateBuffer(ValidationObject *layer_data, uint64_t descriptorUpdateTemplate, const void *pData) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto const template_map_entry = layer_data->desc_template_createinfo_map.find(descriptorUpdateTemplate);
     auto const &create_info = template_map_entry->second->create_info;
     size_t allocation_size = 0;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    std::vector<std::tuple<size_t, VulkanObjectType, uintptr_t, size_t>> template_entries;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     std::vector<std::tuple<size_t, VulkanObjectType, uint64_t, size_t>> template_entries;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
     for (uint32_t i = 0; i < create_info.descriptorUpdateEntryCount; i++) {
         for (uint32_t j = 0; j < create_info.pDescriptorUpdateEntries[i].descriptorCount; j++) {
@@ -940,7 +984,11 @@ void *BuildUnwrappedUpdateTemplateBuffer(ValidationObject *layer_data, uint64_t 
                     VkDescriptorImageInfo *wrapped_entry = new VkDescriptorImageInfo(*image_entry);
                     wrapped_entry->sampler = layer_data->Unwrap(image_entry->sampler);
                     wrapped_entry->imageView = layer_data->Unwrap(image_entry->imageView);
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    template_entries.emplace_back(offset, kVulkanObjectTypeImage, CastToUintPtr(wrapped_entry), 0);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     template_entries.emplace_back(offset, kVulkanObjectTypeImage, CastToUint64(wrapped_entry), 0);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                 } break;
 
                 case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
@@ -952,7 +1000,11 @@ void *BuildUnwrappedUpdateTemplateBuffer(ValidationObject *layer_data, uint64_t 
 
                     VkDescriptorBufferInfo *wrapped_entry = new VkDescriptorBufferInfo(*buffer_entry);
                     wrapped_entry->buffer = layer_data->Unwrap(buffer_entry->buffer);
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    template_entries.emplace_back(offset, kVulkanObjectTypeBuffer, CastToUintPtr(wrapped_entry), 0);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     template_entries.emplace_back(offset, kVulkanObjectTypeBuffer, CastToUint64(wrapped_entry), 0);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                 } break;
 
                 case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
@@ -961,13 +1013,21 @@ void *BuildUnwrappedUpdateTemplateBuffer(ValidationObject *layer_data, uint64_t 
                     allocation_size = std::max(allocation_size, offset + sizeof(VkBufferView));
 
                     VkBufferView wrapped_entry = layer_data->Unwrap(*buffer_view_handle);
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    template_entries.emplace_back(offset, kVulkanObjectTypeBufferView, CastToUintPtr(wrapped_entry), 0);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     template_entries.emplace_back(offset, kVulkanObjectTypeBufferView, CastToUint64(wrapped_entry), 0);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                 } break;
                 case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT: {
                     size_t numBytes = create_info.pDescriptorUpdateEntries[i].descriptorCount;
                     allocation_size = std::max(allocation_size, offset + numBytes);
                     // nothing to unwrap, just plain data
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    template_entries.emplace_back(offset, kVulkanObjectTypeUnknown, CastToUintPtr(update_entry),
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     template_entries.emplace_back(offset, kVulkanObjectTypeUnknown, CastToUint64(update_entry),
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                                                   numBytes);
                     // to break out of the loop
                     j = create_info.pDescriptorUpdateEntries[i].descriptorCount;
@@ -977,14 +1037,22 @@ void *BuildUnwrappedUpdateTemplateBuffer(ValidationObject *layer_data, uint64_t 
                     allocation_size = std::max(allocation_size, offset + sizeof(VkAccelerationStructureNV ));
 
                     VkAccelerationStructureNV  wrapped_entry = layer_data->Unwrap(*accstruct_nv_handle);
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    template_entries.emplace_back(offset, kVulkanObjectTypeAccelerationStructureNV, CastToUintPtr(wrapped_entry), 0);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     template_entries.emplace_back(offset, kVulkanObjectTypeAccelerationStructureNV, CastToUint64(wrapped_entry), 0);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                 } break;
                 case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
                     auto accstruct_khr_handle = reinterpret_cast<VkAccelerationStructureKHR *>(update_entry);
                     allocation_size = std::max(allocation_size, offset + sizeof(VkAccelerationStructureKHR ));
 
                     VkAccelerationStructureKHR  wrapped_entry = layer_data->Unwrap(*accstruct_khr_handle);
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    template_entries.emplace_back(offset, kVulkanObjectTypeAccelerationStructureKHR, CastToUintPtr(wrapped_entry), 0);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     template_entries.emplace_back(offset, kVulkanObjectTypeAccelerationStructureKHR, CastToUint64(wrapped_entry), 0);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                 } break;
                 default:
                     assert(0);
@@ -997,32 +1065,61 @@ void *BuildUnwrappedUpdateTemplateBuffer(ValidationObject *layer_data, uint64_t 
     for (auto &this_entry : template_entries) {
         VulkanObjectType type = std::get<1>(this_entry);
         void *destination = (char *)unwrapped_data + std::get<0>(this_entry);
+#if defined(__CHERI_PURE_CAPABILITY__)
+        uintptr_t source = std::get<2>(this_entry);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         uint64_t source = std::get<2>(this_entry);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         size_t size = std::get<3>(this_entry);
 
         if (size != 0) {
             assert(type == kVulkanObjectTypeUnknown);
+#if defined(__CHERI_PURE_CAPABILITY__)
+            memcpy(destination, CastFromUintPtr<void *>(source), size);
+#else // defined(__CHERI_PURE_CAPABILITY__)
             memcpy(destination, CastFromUint64<void *>(source), size);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         } else {
             switch (type) {
                 case kVulkanObjectTypeImage:
                     *(reinterpret_cast<VkDescriptorImageInfo *>(destination)) =
                         *(reinterpret_cast<VkDescriptorImageInfo *>(source));
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    delete CastFromUintPtr<VkDescriptorImageInfo *>(source);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     delete CastFromUint64<VkDescriptorImageInfo *>(source);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                     break;
                 case kVulkanObjectTypeBuffer:
                     *(reinterpret_cast<VkDescriptorBufferInfo *>(destination)) =
+#if defined(__CHERI_PURE_CAPABILITY__)
+                        *(CastFromUintPtr<VkDescriptorBufferInfo *>(source));
+                    delete CastFromUintPtr<VkDescriptorBufferInfo *>(source);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                         *(CastFromUint64<VkDescriptorBufferInfo *>(source));
                     delete CastFromUint64<VkDescriptorBufferInfo *>(source);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                     break;
                 case kVulkanObjectTypeBufferView:
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    *(reinterpret_cast<VkBufferView *>(destination)) = CastFromUintPtr<VkBufferView>(source);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     *(reinterpret_cast<VkBufferView *>(destination)) = CastFromUint64<VkBufferView>(source);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                     break;
                 case kVulkanObjectTypeAccelerationStructureKHR:
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    *(reinterpret_cast<VkAccelerationStructureKHR *>(destination)) = CastFromUintPtr<VkAccelerationStructureKHR>(source);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     *(reinterpret_cast<VkAccelerationStructureKHR *>(destination)) = CastFromUint64<VkAccelerationStructureKHR>(source);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                     break;
                 case kVulkanObjectTypeAccelerationStructureNV:
+#if defined(__CHERI_PURE_CAPABILITY__)
+                    *(reinterpret_cast<VkAccelerationStructureNV *>(destination)) = CastFromUintPtr<VkAccelerationStructureNV>(source);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                     *(reinterpret_cast<VkAccelerationStructureNV *>(destination)) = CastFromUint64<VkAccelerationStructureNV>(source);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                     break;
                 default:
                     assert(0);
@@ -1039,7 +1136,11 @@ void DispatchUpdateDescriptorSetWithTemplate(VkDevice device, VkDescriptorSet de
     if (!wrap_handles)
         return layer_data->device_dispatch_table.UpdateDescriptorSetWithTemplate(device, descriptorSet, descriptorUpdateTemplate,
                                                                                  pData);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t template_handle = CastToUintPtr(descriptorUpdateTemplate);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t template_handle = CastToUint64(descriptorUpdateTemplate);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     void *unwrapped_buffer = nullptr;
     {
         ReadLockGuard lock(dispatch_lock);
@@ -1057,7 +1158,11 @@ void DispatchUpdateDescriptorSetWithTemplateKHR(VkDevice device, VkDescriptorSet
     if (!wrap_handles)
         return layer_data->device_dispatch_table.UpdateDescriptorSetWithTemplateKHR(device, descriptorSet, descriptorUpdateTemplate,
                                                                                     pData);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t template_handle = CastToUintPtr(descriptorUpdateTemplate);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t template_handle = CastToUint64(descriptorUpdateTemplate);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     void *unwrapped_buffer = nullptr;
     {
         ReadLockGuard lock(dispatch_lock);
@@ -1076,7 +1181,11 @@ void DispatchCmdPushDescriptorSetWithTemplateKHR(VkCommandBuffer commandBuffer,
     if (!wrap_handles)
         return layer_data->device_dispatch_table.CmdPushDescriptorSetWithTemplateKHR(commandBuffer, descriptorUpdateTemplate,
                                                                                      layout, set, pData);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t template_handle = CastToUintPtr(descriptorUpdateTemplate);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t template_handle = CastToUint64(descriptorUpdateTemplate);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     void *unwrapped_buffer = nullptr;
     {
         ReadLockGuard lock(dispatch_lock);
@@ -1218,7 +1327,11 @@ VkResult DispatchDebugMarkerSetObjectTagEXT(VkDevice device, const VkDebugMarker
     if (!wrap_handles) return layer_data->device_dispatch_table.DebugMarkerSetObjectTagEXT(device, pTagInfo);
     safe_VkDebugMarkerObjectTagInfoEXT local_tag_info(pTagInfo);
     {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        auto it = unique_id_mapping.find(CastToUintPtr(local_tag_info.object));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         auto it = unique_id_mapping.find(CastToUint64(local_tag_info.object));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         if (it != unique_id_mapping.end()) {
             local_tag_info.object = it->second;
         }
@@ -1233,7 +1346,11 @@ VkResult DispatchDebugMarkerSetObjectNameEXT(VkDevice device, const VkDebugMarke
     if (!wrap_handles) return layer_data->device_dispatch_table.DebugMarkerSetObjectNameEXT(device, pNameInfo);
     safe_VkDebugMarkerObjectNameInfoEXT local_name_info(pNameInfo);
     {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        auto it = unique_id_mapping.find(CastToUintPtr(local_name_info.object));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         auto it = unique_id_mapping.find(CastToUint64(local_name_info.object));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         if (it != unique_id_mapping.end()) {
             local_name_info.object = it->second;
         }
@@ -1249,7 +1366,11 @@ VkResult DispatchSetDebugUtilsObjectTagEXT(VkDevice device, const VkDebugUtilsOb
     if (!wrap_handles) return layer_data->device_dispatch_table.SetDebugUtilsObjectTagEXT(device, pTagInfo);
     safe_VkDebugUtilsObjectTagInfoEXT local_tag_info(pTagInfo);
     {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        auto it = unique_id_mapping.find(CastToUintPtr(local_tag_info.objectHandle));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         auto it = unique_id_mapping.find(CastToUint64(local_tag_info.objectHandle));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         if (it != unique_id_mapping.end()) {
             local_tag_info.objectHandle = it->second;
         }
@@ -1264,7 +1385,11 @@ VkResult DispatchSetDebugUtilsObjectNameEXT(VkDevice device, const VkDebugUtilsO
     if (!wrap_handles) return layer_data->device_dispatch_table.SetDebugUtilsObjectNameEXT(device, pNameInfo);
     safe_VkDebugUtilsObjectNameInfoEXT local_name_info(pNameInfo);
     {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        auto it = unique_id_mapping.find(CastToUintPtr(local_name_info.objectHandle));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         auto it = unique_id_mapping.find(CastToUint64(local_name_info.objectHandle));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         if (it != unique_id_mapping.end()) {
             local_name_info.objectHandle = it->second;
         }
@@ -1306,7 +1431,11 @@ bool NotDispatchableHandle(VkObjectType object_type) {
 VkResult DispatchSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlotEXT                        privateDataSlot,
     uint64_t                                    data)
 {
@@ -1323,7 +1452,11 @@ VkResult DispatchSetPrivateDataEXT(
 VkResult DispatchSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data)
 {
@@ -1340,7 +1473,11 @@ VkResult DispatchSetPrivateData(
 void DispatchGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlotEXT                        privateDataSlot,
     uint64_t*                                   pData)
 {
@@ -1356,7 +1493,11 @@ void DispatchGetPrivateDataEXT(
 void DispatchGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData)
 {
@@ -1417,7 +1558,11 @@ void DispatchFreeCommandBuffers(VkDevice device, VkCommandPool commandPool, uint
 void DispatchDestroyCommandPool(VkDevice device, VkCommandPool commandPool, const VkAllocationCallbacks* pAllocator) {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyCommandPool(device, commandPool, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t commandPool_id = CastToUintPtr(commandPool);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t commandPool_id = CastToUint64(commandPool);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(commandPool_id);
     if (iter != unique_id_mapping.end()) {
         commandPool = (VkCommandPool)iter->second;
@@ -1993,7 +2138,11 @@ void DispatchFreeMemory(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.FreeMemory(device, memory, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t memory_id = CastToUintPtr(memory);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t memory_id = CastToUint64(memory);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(memory_id);
     if (iter != unique_id_mapping.end()) {
         memory = (VkDeviceMemory)iter->second;
@@ -2292,7 +2441,11 @@ void DispatchDestroyFence(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyFence(device, fence, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t fence_id = CastToUintPtr(fence);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t fence_id = CastToUint64(fence);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(fence_id);
     if (iter != unique_id_mapping.end()) {
         fence = (VkFence)iter->second;
@@ -2387,7 +2540,11 @@ void DispatchDestroySemaphore(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroySemaphore(device, semaphore, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t semaphore_id = CastToUintPtr(semaphore);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t semaphore_id = CastToUint64(semaphore);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(semaphore_id);
     if (iter != unique_id_mapping.end()) {
         semaphore = (VkSemaphore)iter->second;
@@ -2420,7 +2577,11 @@ void DispatchDestroyEvent(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyEvent(device, event, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t event_id = CastToUintPtr(event);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t event_id = CastToUint64(event);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(event_id);
     if (iter != unique_id_mapping.end()) {
         event = (VkEvent)iter->second;
@@ -2495,7 +2656,11 @@ void DispatchDestroyQueryPool(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyQueryPool(device, queryPool, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t queryPool_id = CastToUintPtr(queryPool);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t queryPool_id = CastToUint64(queryPool);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(queryPool_id);
     if (iter != unique_id_mapping.end()) {
         queryPool = (VkQueryPool)iter->second;
@@ -2557,7 +2722,11 @@ void DispatchDestroyBuffer(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyBuffer(device, buffer, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t buffer_id = CastToUintPtr(buffer);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t buffer_id = CastToUint64(buffer);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(buffer_id);
     if (iter != unique_id_mapping.end()) {
         buffer = (VkBuffer)iter->second;
@@ -2601,7 +2770,11 @@ void DispatchDestroyBufferView(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyBufferView(device, bufferView, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t bufferView_id = CastToUintPtr(bufferView);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t bufferView_id = CastToUint64(bufferView);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(bufferView_id);
     if (iter != unique_id_mapping.end()) {
         bufferView = (VkBufferView)iter->second;
@@ -2643,7 +2816,11 @@ void DispatchDestroyImage(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyImage(device, image, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t image_id = CastToUintPtr(image);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t image_id = CastToUint64(image);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(image_id);
     if (iter != unique_id_mapping.end()) {
         image = (VkImage)iter->second;
@@ -2703,7 +2880,11 @@ void DispatchDestroyImageView(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyImageView(device, imageView, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t imageView_id = CastToUintPtr(imageView);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t imageView_id = CastToUint64(imageView);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(imageView_id);
     if (iter != unique_id_mapping.end()) {
         imageView = (VkImageView)iter->second;
@@ -2745,7 +2926,11 @@ void DispatchDestroyShaderModule(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyShaderModule(device, shaderModule, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t shaderModule_id = CastToUintPtr(shaderModule);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t shaderModule_id = CastToUint64(shaderModule);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(shaderModule_id);
     if (iter != unique_id_mapping.end()) {
         shaderModule = (VkShaderModule)iter->second;
@@ -2778,7 +2963,11 @@ void DispatchDestroyPipelineCache(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyPipelineCache(device, pipelineCache, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t pipelineCache_id = CastToUintPtr(pipelineCache);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t pipelineCache_id = CastToUint64(pipelineCache);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(pipelineCache_id);
     if (iter != unique_id_mapping.end()) {
         pipelineCache = (VkPipelineCache)iter->second;
@@ -2890,7 +3079,11 @@ void DispatchDestroyPipeline(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyPipeline(device, pipeline, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t pipeline_id = CastToUintPtr(pipeline);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t pipeline_id = CastToUint64(pipeline);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(pipeline_id);
     if (iter != unique_id_mapping.end()) {
         pipeline = (VkPipeline)iter->second;
@@ -2936,7 +3129,11 @@ void DispatchDestroyPipelineLayout(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyPipelineLayout(device, pipelineLayout, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t pipelineLayout_id = CastToUintPtr(pipelineLayout);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t pipelineLayout_id = CastToUint64(pipelineLayout);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(pipelineLayout_id);
     if (iter != unique_id_mapping.end()) {
         pipelineLayout = (VkPipelineLayout)iter->second;
@@ -2978,7 +3175,11 @@ void DispatchDestroySampler(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroySampler(device, sampler, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t sampler_id = CastToUintPtr(sampler);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t sampler_id = CastToUint64(sampler);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(sampler_id);
     if (iter != unique_id_mapping.end()) {
         sampler = (VkSampler)iter->second;
@@ -3028,7 +3229,11 @@ void DispatchDestroyDescriptorSetLayout(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyDescriptorSetLayout(device, descriptorSetLayout, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t descriptorSetLayout_id = CastToUintPtr(descriptorSetLayout);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t descriptorSetLayout_id = CastToUint64(descriptorSetLayout);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(descriptorSetLayout_id);
     if (iter != unique_id_mapping.end()) {
         descriptorSetLayout = (VkDescriptorSetLayout)iter->second;
@@ -3166,7 +3371,11 @@ void DispatchDestroyFramebuffer(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyFramebuffer(device, framebuffer, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t framebuffer_id = CastToUintPtr(framebuffer);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t framebuffer_id = CastToUint64(framebuffer);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(framebuffer_id);
     if (iter != unique_id_mapping.end()) {
         framebuffer = (VkFramebuffer)iter->second;
@@ -4262,7 +4471,11 @@ void DispatchDestroySamplerYcbcrConversion(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroySamplerYcbcrConversion(device, ycbcrConversion, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t ycbcrConversion_id = CastToUintPtr(ycbcrConversion);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t ycbcrConversion_id = CastToUint64(ycbcrConversion);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(ycbcrConversion_id);
     if (iter != unique_id_mapping.end()) {
         ycbcrConversion = (VkSamplerYcbcrConversion)iter->second;
@@ -4598,7 +4811,11 @@ void DispatchDestroyPrivateDataSlot(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyPrivateDataSlot(device, privateDataSlot, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t privateDataSlot_id = CastToUintPtr(privateDataSlot);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t privateDataSlot_id = CastToUint64(privateDataSlot);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(privateDataSlot_id);
     if (iter != unique_id_mapping.end()) {
         privateDataSlot = (VkPrivateDataSlot)iter->second;
@@ -5188,7 +5405,11 @@ void DispatchDestroySurfaceKHR(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(instance), layer_data_map);
     if (!wrap_handles) return layer_data->instance_dispatch_table.DestroySurfaceKHR(instance, surface, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t surface_id = CastToUintPtr(surface);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t surface_id = CastToUint64(surface);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(surface_id);
     if (iter != unique_id_mapping.end()) {
         surface = (VkSurfaceKHR)iter->second;
@@ -5623,7 +5844,11 @@ void DispatchDestroyVideoSessionKHR(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyVideoSessionKHR(device, videoSession, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t videoSession_id = CastToUintPtr(videoSession);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t videoSession_id = CastToUint64(videoSession);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(videoSession_id);
     if (iter != unique_id_mapping.end()) {
         videoSession = (VkVideoSessionKHR)iter->second;
@@ -5729,7 +5954,11 @@ void DispatchDestroyVideoSessionParametersKHR(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyVideoSessionParametersKHR(device, videoSessionParameters, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t videoSessionParameters_id = CastToUintPtr(videoSessionParameters);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t videoSessionParameters_id = CastToUint64(videoSessionParameters);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(videoSessionParameters_id);
     if (iter != unique_id_mapping.end()) {
         videoSessionParameters = (VkVideoSessionParametersKHR)iter->second;
@@ -6638,7 +6867,11 @@ void DispatchDestroySamplerYcbcrConversionKHR(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroySamplerYcbcrConversionKHR(device, ycbcrConversion, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t ycbcrConversion_id = CastToUintPtr(ycbcrConversion);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t ycbcrConversion_id = CastToUint64(ycbcrConversion);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(ycbcrConversion_id);
     if (iter != unique_id_mapping.end()) {
         ycbcrConversion = (VkSamplerYcbcrConversion)iter->second;
@@ -6960,7 +7193,11 @@ void DispatchDestroyDeferredOperationKHR(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyDeferredOperationKHR(device, operation, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t operation_id = CastToUintPtr(operation);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t operation_id = CastToUint64(operation);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(operation_id);
     if (iter != unique_id_mapping.end()) {
         operation = (VkDeferredOperationKHR)iter->second;
@@ -7563,7 +7800,11 @@ void DispatchDestroyDebugReportCallbackEXT(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(instance), layer_data_map);
     if (!wrap_handles) return layer_data->instance_dispatch_table.DestroyDebugReportCallbackEXT(instance, callback, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t callback_id = CastToUintPtr(callback);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t callback_id = CastToUint64(callback);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(callback_id);
     if (iter != unique_id_mapping.end()) {
         callback = (VkDebugReportCallbackEXT)iter->second;
@@ -7789,7 +8030,11 @@ void DispatchDestroyCuModuleNVX(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyCuModuleNVX(device, module, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t module_id = CastToUintPtr(module);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t module_id = CastToUint64(module);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(module_id);
     if (iter != unique_id_mapping.end()) {
         module = (VkCuModuleNVX)iter->second;
@@ -7807,7 +8052,11 @@ void DispatchDestroyCuFunctionNVX(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyCuFunctionNVX(device, function, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t function_id = CastToUintPtr(function);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t function_id = CastToUint64(function);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(function_id);
     if (iter != unique_id_mapping.end()) {
         function = (VkCuFunctionNVX)iter->second;
@@ -8373,7 +8622,11 @@ void DispatchDestroyDebugUtilsMessengerEXT(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(instance), layer_data_map);
     if (!wrap_handles) return layer_data->instance_dispatch_table.DestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t messenger_id = CastToUintPtr(messenger);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t messenger_id = CastToUint64(messenger);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(messenger_id);
     if (iter != unique_id_mapping.end()) {
         messenger = (VkDebugUtilsMessengerEXT)iter->second;
@@ -8491,7 +8744,11 @@ void DispatchDestroyValidationCacheEXT(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyValidationCacheEXT(device, validationCache, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t validationCache_id = CastToUintPtr(validationCache);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t validationCache_id = CastToUint64(validationCache);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(validationCache_id);
     if (iter != unique_id_mapping.end()) {
         validationCache = (VkValidationCacheEXT)iter->second;
@@ -8625,7 +8882,11 @@ void DispatchDestroyAccelerationStructureNV(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyAccelerationStructureNV(device, accelerationStructure, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t accelerationStructure_id = CastToUintPtr(accelerationStructure);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t accelerationStructure_id = CastToUint64(accelerationStructure);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(accelerationStructure_id);
     if (iter != unique_id_mapping.end()) {
         accelerationStructure = (VkAccelerationStructureNV)iter->second;
@@ -9696,7 +9957,11 @@ void DispatchDestroyIndirectCommandsLayoutNV(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyIndirectCommandsLayoutNV(device, indirectCommandsLayout, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t indirectCommandsLayout_id = CastToUintPtr(indirectCommandsLayout);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t indirectCommandsLayout_id = CastToUint64(indirectCommandsLayout);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(indirectCommandsLayout_id);
     if (iter != unique_id_mapping.end()) {
         indirectCommandsLayout = (VkIndirectCommandsLayoutNV)iter->second;
@@ -9759,7 +10024,11 @@ void DispatchDestroyPrivateDataSlotEXT(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyPrivateDataSlotEXT(device, privateDataSlot, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t privateDataSlot_id = CastToUintPtr(privateDataSlot);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t privateDataSlot_id = CastToUint64(privateDataSlot);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(privateDataSlot_id);
     if (iter != unique_id_mapping.end()) {
         privateDataSlot = (VkPrivateDataSlot)iter->second;
@@ -10272,7 +10541,11 @@ void DispatchDestroyBufferCollectionFUCHSIA(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyBufferCollectionFUCHSIA(device, collection, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t collection_id = CastToUintPtr(collection);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t collection_id = CastToUint64(collection);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(collection_id);
     if (iter != unique_id_mapping.end()) {
         collection = (VkBufferCollectionFUCHSIA)iter->second;
@@ -10520,7 +10793,11 @@ void DispatchDestroyMicromapEXT(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyMicromapEXT(device, micromap, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t micromap_id = CastToUintPtr(micromap);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t micromap_id = CastToUint64(micromap);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(micromap_id);
     if (iter != unique_id_mapping.end()) {
         micromap = (VkMicromapEXT)iter->second;
@@ -11330,7 +11607,11 @@ void DispatchDestroyOpticalFlowSessionNV(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyOpticalFlowSessionNV(device, session, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t session_id = CastToUintPtr(session);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t session_id = CastToUint64(session);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(session_id);
     if (iter != unique_id_mapping.end()) {
         session = (VkOpticalFlowSessionNV)iter->second;
@@ -11415,7 +11696,11 @@ void DispatchDestroyShaderEXT(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyShaderEXT(device, shader, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t shader_id = CastToUintPtr(shader);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t shader_id = CastToUint64(shader);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(shader_id);
     if (iter != unique_id_mapping.end()) {
         shader = (VkShaderEXT)iter->second;
@@ -11570,7 +11855,11 @@ void DispatchDestroyAccelerationStructureKHR(
 {
     auto layer_data = GetLayerDataPtr(get_dispatch_key(device), layer_data_map);
     if (!wrap_handles) return layer_data->device_dispatch_table.DestroyAccelerationStructureKHR(device, accelerationStructure, pAllocator);
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t accelerationStructure_id = CastToUintPtr(accelerationStructure);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t accelerationStructure_id = CastToUint64(accelerationStructure);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = unique_id_mapping.pop(accelerationStructure_id);
     if (iter != unique_id_mapping.end()) {
         accelerationStructure = (VkAccelerationStructureKHR)iter->second;

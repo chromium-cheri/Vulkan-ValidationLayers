@@ -1333,7 +1333,11 @@ VkBufferTest::~VkBufferTest() {
     }
     if (AllocateCurrent) {
         if (InvalidDeleteEn) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+            auto bad_memory = CastFromUintPtr<VkDeviceMemory>(CastToUintPtr(VulkanMemory) + 1);
+#else // defined(__CHERI_PURE_CAPABILITY__)
             auto bad_memory = CastFromUint64<VkDeviceMemory>(CastToUint64(VulkanMemory) + 1);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             vk::FreeMemory(VulkanDevice, bad_memory, nullptr);
         }
         vk::FreeMemory(VulkanDevice, VulkanMemory, nullptr);

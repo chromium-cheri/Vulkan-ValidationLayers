@@ -2546,7 +2546,11 @@ void ObjectLifetimes::PreCallRecordDestroyPrivateDataSlot(
 bool ObjectLifetimes::PreCallValidateSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) const {
     bool skip = false;
@@ -2559,7 +2563,11 @@ bool ObjectLifetimes::PreCallValidateSetPrivateData(
 bool ObjectLifetimes::PreCallValidateGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) const {
     bool skip = false;
@@ -6938,7 +6946,11 @@ void ObjectLifetimes::PreCallRecordDestroyPrivateDataSlotEXT(
 bool ObjectLifetimes::PreCallValidateSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) const {
     bool skip = false;
@@ -6951,7 +6963,11 @@ bool ObjectLifetimes::PreCallValidateSetPrivateDataEXT(
 bool ObjectLifetimes::PreCallValidateGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) const {
     bool skip = false;

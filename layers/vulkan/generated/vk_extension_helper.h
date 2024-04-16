@@ -257,7 +257,11 @@ struct InstanceExtensions {
     }
 
     static const InstanceInfo &get_info(const char *name) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        static const InstanceInfo empty_info {0ULL, InstanceReqVec()};
+#else // defined(__CHERI_PURE_CAPABILITY__)
         static const InstanceInfo empty_info {nullptr, InstanceReqVec()};
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         const auto &ext_map = InstanceExtensions::get_info_map();
         const auto info = ext_map.find(name);
         if ( info != ext_map.cend()) {
@@ -1334,7 +1338,11 @@ struct DeviceExtensions : public InstanceExtensions {
     }
 
     static const DeviceInfo &get_info(const char *name) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        static const DeviceInfo empty_info {0ULL, DeviceReqVec()};
+#else // defined(__CHERI_PURE_CAPABILITY__)
         static const DeviceInfo empty_info {nullptr, DeviceReqVec()};
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         const auto &ext_map = DeviceExtensions::get_info_map();
         const auto info = ext_map.find(name);
         if ( info != ext_map.cend()) {

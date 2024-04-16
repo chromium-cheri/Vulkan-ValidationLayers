@@ -240,7 +240,11 @@ class PIPELINE_STATE : public BASE_NODE {
 
     VkPipeline pipeline() const { return handle_.Cast<VkPipeline>(); }
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    void SetHandle(VkPipeline p) { handle_.handle = CastToUintPtr(p); }
+#else // defined(__CHERI_PURE_CAPABILITY__)
     void SetHandle(VkPipeline p) { handle_.handle = CastToUint64(p); }
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
     inline const char *GetCreateFunctionName() const {
         switch (create_info.graphics.sType) {

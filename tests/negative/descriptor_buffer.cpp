@@ -1309,7 +1309,11 @@ TEST_F(NegativeDescriptorBuffer, Various) {
     {
         VkSampler invalid_sampler = CastToHandle<VkSampler, uintptr_t>(0xbaadbeef);
         VkImageView invalid_imageview = CastToHandle<VkImageView, uintptr_t>(0xbaadbeef);
+#if defined(__CHERI_PURE_CAPABILITY__)
+        VkDeviceAddress invalid_buffer = 0xbaadbeef;
+#else // defined(__CHERI_PURE_CAPABILITY__)
         VkDeviceAddress invalid_buffer = CastToHandle<VkDeviceAddress, uintptr_t>(0xbaadbeef);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
         uint8_t buffer[128];
         auto dgi = LvlInitStruct<VkDescriptorGetInfoEXT>();

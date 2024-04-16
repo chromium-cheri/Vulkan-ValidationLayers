@@ -26,7 +26,11 @@ bool BestPractices::PreCallValidateCreateBuffer(VkDevice device, const VkBufferC
 
     if ((pCreateInfo->queueFamilyIndexCount > 1) && (pCreateInfo->sharingMode == VK_SHARING_MODE_EXCLUSIVE)) {
         std::stringstream buffer_hex;
+#if defined(__CHERI_PURE_CAPABILITY__)
+        buffer_hex << "0x" << std::hex << HandleToUintPtr(pBuffer);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         buffer_hex << "0x" << std::hex << HandleToUint64(pBuffer);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
         skip |= LogWarning(
             device, kVUID_BestPractices_SharingModeExclusive,

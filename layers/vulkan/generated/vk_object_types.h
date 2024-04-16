@@ -404,7 +404,7 @@ template <typename VkType> struct VkHandleInfo {};
 template <VulkanObjectType id> struct VulkanObjectTypeInfo {};
 
 // The following line must match the vulkan_core.h condition guarding VK_DEFINE_NON_DISPATCHABLE_HANDLE
-#if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__)) || defined(_M_X64) || defined(__ia64) ||                 defined(_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
+#if (defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__)) || defined(_M_X64) || defined(__ia64) ||                 defined(_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)) && !defined(__CHERI_PURE_CAPABILITY__)
 #define TYPESAFE_NONDISPATCHABLE_HANDLES
 #else
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkNonDispatchableHandle)
@@ -955,11 +955,22 @@ template <> struct VulkanObjectTypeInfo<kVulkanObjectTypeVideoSessionParametersK
 };
 #endif // TYPESAFE_NONDISPATCHABLE_HANDLES
 struct VulkanTypedHandle {
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t handle;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t handle;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VulkanObjectType type;
     template <typename Handle>
     VulkanTypedHandle(Handle handle_, VulkanObjectType type_) :
+#if defined(__CHERI_PURE_CAPABILITY__)
+        // The old style C cast is used here as the handle maybe a pointer or
+	// uint64_ti; the C cast can handle both cases falling back to a
+	// reinterpret cast for the pointer case.. 
+        handle((uintptr_t) handle_),
+#else // defined(__CHERI_PURE_CAPABILITY__)
         handle(CastToUint64(handle_)),
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         type(type_) {
 #ifdef TYPESAFE_NONDISPATCHABLE_HANDLES
         // For 32 bit it's not always safe to check for traits <-> type
@@ -973,10 +984,24 @@ struct VulkanTypedHandle {
 #ifdef TYPESAFE_NONDISPATCHABLE_HANDLES
         assert(type == VkHandleInfo<Handle>::kVulkanObjectType);
 #endif // TYPESAFE_NONDISPATCHABLE_HANDLES
+#if defined(__CHERI_PURE_CAPABILITY__)
+        return reinterpret_cast<Handle>(handle);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         return CastFromUint64<Handle>(handle);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     }
+#if defined(__CHERI_PURE_CAPABILITY__)
+    template <>
+    uint64_t Cast() const {
+        return static_cast<uint64_t>(handle);
+    }
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VulkanTypedHandle() :
+#if defined(__CHERI_PURE_CAPABILITY__)
+        handle(static_cast<uintptr_t>(VK_NULL_HANDLE)),
+#else // defined(__CHERI_PURE_CAPABILITY__)
         handle(CastToUint64(VK_NULL_HANDLE)),
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         type(kVulkanObjectTypeUnknown) {}
     operator bool() const { return handle != 0; }
 };

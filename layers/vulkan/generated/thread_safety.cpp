@@ -3650,7 +3650,11 @@ void ThreadSafety::PostCallRecordDestroyPrivateDataSlot(
 void ThreadSafety::PreCallRecordSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) {
     StartReadObjectParentInstance(device, "vkSetPrivateData");
@@ -3660,7 +3664,11 @@ void ThreadSafety::PreCallRecordSetPrivateData(
 void ThreadSafety::PostCallRecordSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data,
     VkResult                                    result) {
@@ -3671,7 +3679,11 @@ void ThreadSafety::PostCallRecordSetPrivateData(
 void ThreadSafety::PreCallRecordGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) {
     StartReadObjectParentInstance(device, "vkGetPrivateData");
@@ -3681,7 +3693,11 @@ void ThreadSafety::PreCallRecordGetPrivateData(
 void ThreadSafety::PostCallRecordGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) {
     FinishReadObjectParentInstance(device, "vkGetPrivateData");
@@ -8436,7 +8452,11 @@ void ThreadSafety::PostCallRecordDestroyPrivateDataSlotEXT(
 void ThreadSafety::PreCallRecordSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) {
     StartReadObjectParentInstance(device, "vkSetPrivateDataEXT");
@@ -8446,7 +8466,11 @@ void ThreadSafety::PreCallRecordSetPrivateDataEXT(
 void ThreadSafety::PostCallRecordSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data,
     VkResult                                    result) {
@@ -8457,7 +8481,11 @@ void ThreadSafety::PostCallRecordSetPrivateDataEXT(
 void ThreadSafety::PreCallRecordGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) {
     StartReadObjectParentInstance(device, "vkGetPrivateDataEXT");
@@ -8467,7 +8495,11 @@ void ThreadSafety::PreCallRecordGetPrivateDataEXT(
 void ThreadSafety::PostCallRecordGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) {
     FinishReadObjectParentInstance(device, "vkGetPrivateDataEXT");

@@ -51,7 +51,26 @@
 #include "vk_typemap_helper.h"
 
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+extern std::atomic<uintptr_t> global_unique_id;
+#else // defined(__CHERI_PURE_CAPABILITY__)
 extern std::atomic<uint64_t> global_unique_id;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
+
+#if defined(__CHERI_PURE_CAPABILITY__)
+// To avoid re-hashing unique ids on each use, we precompute the hash and store the
+// hash's LSBs in the high 24 bits.
+struct HashedUintPtr {
+    static const int HASHED_UINTPTR_SHIFT = 40;
+    size_t operator()(const uintptr_t &t) const { return static_cast<ptraddr_t>(t) >> HASHED_UINTPTR_SHIFT; }
+
+    static uintptr_t hash(uintptr_t id) {
+        uint64_t h = (uint64_t)vvl::hash<uintptr_t>()(id);
+        id |= h << HASHED_UINTPTR_SHIFT;
+        return id;
+    }
+};
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
 // To avoid re-hashing unique ids on each use, we precompute the hash and store the
 // hash's LSBs in the high 24 bits.
@@ -66,7 +85,11 @@ struct HashedUint64 {
     }
 };
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+extern vl_concurrent_unordered_map<uintptr_t, uintptr_t, 4, HashedUintPtr> unique_id_mapping;
+#else // defined(__CHERI_PURE_CAPABILITY__)
 extern vl_concurrent_unordered_map<uint64_t, uint64_t, 4, HashedUint64> unique_id_mapping;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
 
 VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetPhysicalDeviceProcAddr(
@@ -1106,14 +1129,22 @@ VKAPI_ATTR void VKAPI_CALL DestroyPrivateDataSlot(
 VKAPI_ATTR VkResult VKAPI_CALL SetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data);
 
 VKAPI_ATTR void VKAPI_CALL GetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData);
 
@@ -3070,14 +3101,22 @@ VKAPI_ATTR void VKAPI_CALL DestroyPrivateDataSlotEXT(
 VKAPI_ATTR VkResult VKAPI_CALL SetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data);
 
 VKAPI_ATTR void VKAPI_CALL GetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData);
 
@@ -4028,9 +4067,15 @@ class ValidationObject {
         CHECK_ENABLED enabled = {};
         bool fine_grained_locking{true};
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+        VkInstance instance = (VkInstance) VK_NULL_HANDLE;
+        VkPhysicalDevice physical_device = (VkPhysicalDevice) VK_NULL_HANDLE;
+        VkDevice device = (VkDevice) VK_NULL_HANDLE;
+#else // defined(__CHERI_PURE_CAPABILITY__)
         VkInstance instance = VK_NULL_HANDLE;
         VkPhysicalDevice physical_device = VK_NULL_HANDLE;
         VkDevice device = VK_NULL_HANDLE;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         LAYER_PHYS_DEV_PROPERTIES phys_dev_properties = {};
 
         std::vector<ValidationObject*> object_dispatch;
@@ -4118,9 +4163,17 @@ class ValidationObject {
 
         // Handle Wrapping Data
         // Reverse map display handles
+#if defined(__CHERI_PURE_CAPABILITY__)
+        vl_concurrent_unordered_map<VkDisplayKHR, uintptr_t, 0> display_id_reverse_mapping;
+#else // defined(__CHERI_PURE_CAPABILITY__)
         vl_concurrent_unordered_map<VkDisplayKHR, uint64_t, 0> display_id_reverse_mapping;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         // Wrapping Descriptor Template Update structures requires access to the template createinfo structs
+#if defined(__CHERI_PURE_CAPABILITY__)
+        vvl::unordered_map<uintptr_t, std::unique_ptr<TEMPLATE_STATE>> desc_template_createinfo_map;
+#else // defined(__CHERI_PURE_CAPABILITY__)
         vvl::unordered_map<uint64_t, std::unique_ptr<TEMPLATE_STATE>> desc_template_createinfo_map;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         struct SubpassesUsageStates {
             vvl::unordered_set<uint32_t> subpasses_using_color_attachment;
             vvl::unordered_set<uint32_t> subpasses_using_depthstencil_attachment;
@@ -4138,7 +4191,11 @@ class ValidationObject {
         template <typename HandleType>
         HandleType Unwrap(HandleType wrappedHandle) {
             if (wrappedHandle == (HandleType)VK_NULL_HANDLE) return wrappedHandle;
+#if defined(__CHERI_PURE_CAPABILITY__)
+            auto iter = unique_id_mapping.find(CastToUintPtr(wrappedHandle));
+#else // defined(__CHERI_PURE_CAPABILITY__)
             auto iter = unique_id_mapping.find(CastToUint64(wrappedHandle));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             if (iter == unique_id_mapping.end())
                 return (HandleType)0;
             return (HandleType)iter->second;
@@ -4149,17 +4206,30 @@ class ValidationObject {
         HandleType WrapNew(HandleType newlyCreatedHandle) {
             if (newlyCreatedHandle == (HandleType)VK_NULL_HANDLE) return newlyCreatedHandle;
             auto unique_id = global_unique_id++;
+#if defined(__CHERI_PURE_CAPABILITY__)
+            unique_id = HashedUintPtr::hash(unique_id);
+#else // defined(__CHERI_PURE_CAPABILITY__)
             unique_id = HashedUint64::hash(unique_id);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             assert(unique_id != 0); // can't be 0, otherwise unwrap will apply special rule for VK_NULL_HANDLE
+#if defined(__CHERI_PURE_CAPABILITY__)
+            unique_id_mapping.insert_or_assign(unique_id, CastToUintPtr(newlyCreatedHandle));
+#else // defined(__CHERI_PURE_CAPABILITY__)
             unique_id_mapping.insert_or_assign(unique_id, CastToUint64(newlyCreatedHandle));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             return (HandleType)unique_id;
         }
 
         // Specialized handling for VkDisplayKHR. Adds an entry to enable reverse-lookup.
         VkDisplayKHR WrapDisplay(VkDisplayKHR newlyCreatedHandle, ValidationObject *map_data) {
             auto unique_id = global_unique_id++;
+#if defined(__CHERI_PURE_CAPABILITY__)
+            unique_id = HashedUintPtr::hash(unique_id);
+            unique_id_mapping.insert_or_assign(unique_id, CastToUintPtr(newlyCreatedHandle));
+#else // defined(__CHERI_PURE_CAPABILITY__)
             unique_id = HashedUint64::hash(unique_id);
             unique_id_mapping.insert_or_assign(unique_id, CastToUint64(newlyCreatedHandle));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             map_data->display_id_reverse_mapping.insert_or_assign(newlyCreatedHandle, unique_id);
             return (VkDisplayKHR)unique_id;
         }
@@ -4715,12 +4785,21 @@ class ValidationObject {
         virtual bool PreCallValidateDestroyPrivateDataSlot(VkDevice device, VkPrivateDataSlot privateDataSlot, const VkAllocationCallbacks* pAllocator) const { return false; };
         virtual void PreCallRecordDestroyPrivateDataSlot(VkDevice device, VkPrivateDataSlot privateDataSlot, const VkAllocationCallbacks* pAllocator) {};
         virtual void PostCallRecordDestroyPrivateDataSlot(VkDevice device, VkPrivateDataSlot privateDataSlot, const VkAllocationCallbacks* pAllocator) {};
+#if defined(__CHERI_PURE_CAPABILITY__)
+        virtual bool PreCallValidateSetPrivateData(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) const { return false; };
+        virtual void PreCallRecordSetPrivateData(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) {};
+        virtual void PostCallRecordSetPrivateData(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data, VkResult result) {};
+        virtual bool PreCallValidateGetPrivateData(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) const { return false; };
+        virtual void PreCallRecordGetPrivateData(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
+        virtual void PostCallRecordGetPrivateData(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
+#else // defined(__CHERI_PURE_CAPABILITY__)
         virtual bool PreCallValidateSetPrivateData(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) const { return false; };
         virtual void PreCallRecordSetPrivateData(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) {};
         virtual void PostCallRecordSetPrivateData(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data, VkResult result) {};
         virtual bool PreCallValidateGetPrivateData(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) const { return false; };
         virtual void PreCallRecordGetPrivateData(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
         virtual void PostCallRecordGetPrivateData(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         virtual bool PreCallValidateCmdSetEvent2(VkCommandBuffer                   commandBuffer, VkEvent                                             event, const VkDependencyInfo*                             pDependencyInfo) const { return false; };
         virtual void PreCallRecordCmdSetEvent2(VkCommandBuffer                   commandBuffer, VkEvent                                             event, const VkDependencyInfo*                             pDependencyInfo) {};
         virtual void PostCallRecordCmdSetEvent2(VkCommandBuffer                   commandBuffer, VkEvent                                             event, const VkDependencyInfo*                             pDependencyInfo) {};
@@ -5710,12 +5789,21 @@ class ValidationObject {
         virtual bool PreCallValidateDestroyPrivateDataSlotEXT(VkDevice device, VkPrivateDataSlot privateDataSlot, const VkAllocationCallbacks* pAllocator) const { return false; };
         virtual void PreCallRecordDestroyPrivateDataSlotEXT(VkDevice device, VkPrivateDataSlot privateDataSlot, const VkAllocationCallbacks* pAllocator) {};
         virtual void PostCallRecordDestroyPrivateDataSlotEXT(VkDevice device, VkPrivateDataSlot privateDataSlot, const VkAllocationCallbacks* pAllocator) {};
+#if defined(__CHERI_PURE_CAPABILITY__)
+        virtual bool PreCallValidateSetPrivateDataEXT(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) const { return false; };
+        virtual void PreCallRecordSetPrivateDataEXT(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) {};
+        virtual void PostCallRecordSetPrivateDataEXT(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data, VkResult result) {};
+        virtual bool PreCallValidateGetPrivateDataEXT(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) const { return false; };
+        virtual void PreCallRecordGetPrivateDataEXT(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
+        virtual void PostCallRecordGetPrivateDataEXT(VkDevice device, VkObjectType objectType, uintptr_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
+#else // defined(__CHERI_PURE_CAPABILITY__)
         virtual bool PreCallValidateSetPrivateDataEXT(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) const { return false; };
         virtual void PreCallRecordSetPrivateDataEXT(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data) {};
         virtual void PostCallRecordSetPrivateDataEXT(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t data, VkResult result) {};
         virtual bool PreCallValidateGetPrivateDataEXT(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) const { return false; };
         virtual void PreCallRecordGetPrivateDataEXT(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
         virtual void PostCallRecordGetPrivateDataEXT(VkDevice device, VkObjectType objectType, uint64_t objectHandle, VkPrivateDataSlot privateDataSlot, uint64_t* pData) {};
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 #ifdef VK_USE_PLATFORM_METAL_EXT
         virtual bool PreCallValidateExportMetalObjectsEXT(VkDevice device, VkExportMetalObjectsInfoEXT* pMetalObjectsInfo) const { return false; };
         virtual void PreCallRecordExportMetalObjectsEXT(VkDevice device, VkExportMetalObjectsInfoEXT* pMetalObjectsInfo) {};

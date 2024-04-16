@@ -1058,7 +1058,11 @@ void UtilGenerateStageMessage(const uint32_t *debug_record, std::string &msg) {
     msg = strm.str();
 }
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+std::string LookupDebugUtilsName(const debug_report_data *report_data, const uintptr_t object) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
 std::string LookupDebugUtilsName(const debug_report_data *report_data, const uint64_t object) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto object_label = report_data->DebugReportGetUtilsObjectName(object);
     if (object_label != "") {
         object_label = "(" + object_label + ")";
@@ -1075,11 +1079,20 @@ void UtilGenerateCommonMessage(const debug_report_data *report_data, const VkCom
     std::ostringstream strm;
     if (shader_module_handle == VK_NULL_HANDLE) {
         strm << std::hex << std::showbase << "Internal Error: Unable to locate information for shader used in command buffer "
+#if defined(__CHERI_PURE_CAPABILITY__)
+             << LookupDebugUtilsName(report_data, HandleToUintPtr(commandBuffer)) << "(" << HandleToUintPtr(commandBuffer) << "). ";
+#else // defined(__CHERI_PURE_CAPABILITY__)
              << LookupDebugUtilsName(report_data, HandleToUint64(commandBuffer)) << "(" << HandleToUint64(commandBuffer) << "). ";
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         assert(true);
     } else {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        strm << std::hex << std::showbase << "Command buffer " << LookupDebugUtilsName(report_data, HandleToUintPtr(commandBuffer))
+             << "(" << HandleToUintPtr(commandBuffer) << "). ";
+#else // defined(__CHERI_PURE_CAPABILITY__)
         strm << std::hex << std::showbase << "Command buffer " << LookupDebugUtilsName(report_data, HandleToUint64(commandBuffer))
              << "(" << HandleToUint64(commandBuffer) << "). ";
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         if (pipeline_bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS) {
             strm << "Draw ";
         } else if (pipeline_bind_point == VK_PIPELINE_BIND_POINT_COMPUTE) {
@@ -1091,10 +1104,20 @@ void UtilGenerateCommonMessage(const debug_report_data *report_data, const VkCom
             strm << "Unknown Pipeline Operation ";
         }
         strm << "Index " << operation_index << ". "
+#if defined(__CHERI_PURE_CAPABILITY__)
+             << "Pipeline " << LookupDebugUtilsName(report_data, HandleToUintPtr(pipeline_handle)) << "("
+             << HandleToUintPtr(pipeline_handle) << "). "
+#else // defined(__CHERI_PURE_CAPABILITY__)
              << "Pipeline " << LookupDebugUtilsName(report_data, HandleToUint64(pipeline_handle)) << "("
              << HandleToUint64(pipeline_handle) << "). "
+#endif // defined(__CHERI_PURE_CAPABILITY__)
+#if defined(__CHERI_PURE_CAPABILITY__)
+             << "Shader Module " << LookupDebugUtilsName(report_data, HandleToUintPtr(shader_module_handle)) << "("
+             << HandleToUintPtr(shader_module_handle) << "). ";
+#else // defined(__CHERI_PURE_CAPABILITY__)
              << "Shader Module " << LookupDebugUtilsName(report_data, HandleToUint64(shader_module_handle)) << "("
              << HandleToUint64(shader_module_handle) << "). ";
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     }
     strm << std::dec << std::noshowbase;
     strm << "Shader Instruction Index = " << debug_record[kInstCommonOutInstructionIdx] << ". ";

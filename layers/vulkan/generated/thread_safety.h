@@ -32,7 +32,7 @@
 
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(DISTINCT_NONDISPATCHABLE_PHONY_HANDLE)
 // The following line must match the vulkan_core.h condition guarding VK_DEFINE_NON_DISPATCHABLE_HANDLE
-#if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__)) || defined(_M_X64) || defined(__ia64) ||     defined(_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
+#if (defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__)) || defined(_M_X64) || defined(__ia64) ||     defined(_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)) && !defined(__CHERI_PURE_CAPABILITY__)
 // If pointers are 64-bit, then there can be separate counters for each
 // NONDISPATCHABLE_HANDLE type.  Otherwise they are all typedef uint64_t.
 #define DISTINCT_NONDISPATCHABLE_HANDLES
@@ -41,7 +41,11 @@ static_assert(std::is_pointer<DISTINCT_NONDISPATCHABLE_PHONY_HANDLE>::value,
               "Mismatched non-dispatchable handle handle, expected pointer type.");
 #else
 // Make sure we catch any disagreement between us and the vulkan definition
+#if defined(__CHERI_PURE_CAPABILITY__)
+static_assert(std::is_same<uintptr_t, DISTINCT_NONDISPATCHABLE_PHONY_HANDLE>::value,
+#else // defined(__CHERI_PURE_CAPABILITY__)
 static_assert(std::is_same<uint64_t, DISTINCT_NONDISPATCHABLE_PHONY_HANDLE>::value,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
               "Mismatched non-dispatchable handle handle, expected uint64_t.");
 #endif
 
@@ -347,10 +351,17 @@ public:
 
 
 #else   // DISTINCT_NONDISPATCHABLE_HANDLES
+#if defined(__CHERI_PURE_CAPABILITY__)
+    // Special entry to allow tracking of command pool Reset and Destroy
+    counter<uintptr_t> c_VkCommandPoolContents;
+
+    counter<uintptr_t> c_uintptr_t;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     // Special entry to allow tracking of command pool Reset and Destroy
     counter<uint64_t> c_VkCommandPoolContents;
 
     counter<uint64_t> c_uint64_t;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 #endif  // DISTINCT_NONDISPATCHABLE_HANDLES
 
     // If this ThreadSafety is for a VkDevice, then parent_instance points to the
@@ -415,7 +426,11 @@ public:
 
 
 #else   // DISTINCT_NONDISPATCHABLE_HANDLES
+#if defined(__CHERI_PURE_CAPABILITY__)
+          c_uintptr_t("NON_DISPATCHABLE_HANDLE", kVulkanObjectTypeUnknown, this),
+#else // defined(__CHERI_PURE_CAPABILITY__)
           c_uint64_t("NON_DISPATCHABLE_HANDLE", kVulkanObjectTypeUnknown, this),
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 #endif  // DISTINCT_NONDISPATCHABLE_HANDLES
           parent_instance(parent)
     {
@@ -515,8 +530,13 @@ WRAPPER(VkVideoSessionParametersKHR)
 
 
 #else   // DISTINCT_NONDISPATCHABLE_HANDLES
+#if defined(__CHERI_PURE_CAPABILITY__)
+WRAPPER(uintptr_t)
+WRAPPER_PARENT_INSTANCE(uintptr_t)
+#else // defined(__CHERI_PURE_CAPABILITY__)
 WRAPPER(uint64_t)
 WRAPPER_PARENT_INSTANCE(uint64_t)
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 #endif  // DISTINCT_NONDISPATCHABLE_HANDLES
 
     void CreateObject(VkCommandBuffer object) {
@@ -2505,14 +2525,22 @@ void PostCallRecordDestroyPrivateDataSlot(
 void PreCallRecordSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) override;
 
 void PostCallRecordSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data,
     VkResult                                    result) override;
@@ -2520,14 +2548,22 @@ void PostCallRecordSetPrivateData(
 void PreCallRecordGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) override;
 
 void PostCallRecordGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) override;
 
@@ -5617,14 +5653,22 @@ void PostCallRecordDestroyPrivateDataSlotEXT(
 void PreCallRecordSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) override;
 
 void PostCallRecordSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data,
     VkResult                                    result) override;
@@ -5632,14 +5676,22 @@ void PostCallRecordSetPrivateDataEXT(
 void PreCallRecordGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) override;
 
 void PostCallRecordGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) override;
 

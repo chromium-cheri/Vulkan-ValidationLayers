@@ -6403,7 +6403,11 @@ struct safe_VkDebugMarkerObjectNameInfoEXT {
     VkStructureType sType;
     const void* pNext{};
     VkDebugReportObjectTypeEXT objectType;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t object;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t object;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     const char* pObjectName{};
     safe_VkDebugMarkerObjectNameInfoEXT(const VkDebugMarkerObjectNameInfoEXT* in_struct, PNextCopyState* copy_state = {});
     safe_VkDebugMarkerObjectNameInfoEXT(const safe_VkDebugMarkerObjectNameInfoEXT& copy_src);
@@ -6420,7 +6424,11 @@ struct safe_VkDebugMarkerObjectTagInfoEXT {
     VkStructureType sType;
     const void* pNext{};
     VkDebugReportObjectTypeEXT objectType;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t object;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t object;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t tagName;
     size_t tagSize;
     const void* pTag{};
@@ -7654,7 +7662,11 @@ struct safe_VkDebugUtilsObjectNameInfoEXT {
     VkStructureType sType;
     const void* pNext{};
     VkObjectType objectType;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t objectHandle;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t objectHandle;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     const char* pObjectName{};
     safe_VkDebugUtilsObjectNameInfoEXT(const VkDebugUtilsObjectNameInfoEXT* in_struct, PNextCopyState* copy_state = {});
     safe_VkDebugUtilsObjectNameInfoEXT(const safe_VkDebugUtilsObjectNameInfoEXT& copy_src);
@@ -7714,7 +7726,11 @@ struct safe_VkDebugUtilsObjectTagInfoEXT {
     VkStructureType sType;
     const void* pNext{};
     VkObjectType objectType;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t objectHandle;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t objectHandle;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t tagName;
     size_t tagSize;
     const void* pTag{};
@@ -10096,7 +10112,11 @@ struct safe_VkDeviceMemoryReportCallbackDataEXT {
     uint64_t memoryObjectId;
     VkDeviceSize size;
     VkObjectType objectType;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t objectHandle;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t objectHandle;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     uint32_t heapIndex;
     safe_VkDeviceMemoryReportCallbackDataEXT(const VkDeviceMemoryReportCallbackDataEXT* in_struct, PNextCopyState* copy_state = {});
     safe_VkDeviceMemoryReportCallbackDataEXT(const safe_VkDeviceMemoryReportCallbackDataEXT& copy_src);

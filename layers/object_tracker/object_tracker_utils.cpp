@@ -66,9 +66,17 @@ bool ObjectLifetimes::ValidateDeviceObject(const VulkanTypedHandle &device_typed
     return LogError(instance, invalid_handle_code, "Invalid %s.", report_data->FormatHandle(device_typed).c_str());
 }
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+bool ObjectLifetimes::ValidateAnonymousObject(uintptr_t object, VkObjectType core_object_type, bool null_allowed,
+#else // defined(__CHERI_PURE_CAPABILITY__)
 bool ObjectLifetimes::ValidateAnonymousObject(uint64_t object, VkObjectType core_object_type, bool null_allowed,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                                               const char *invalid_handle_code, const char *wrong_device_code) const {
+#if defined(__CHERI_PURE_CAPABILITY__)
+    if (null_allowed && (object == VK_NULL_HANDLE)) return false;
+#else // defined(__CHERI_PURE_CAPABILITY__)
     if (null_allowed && (object == HandleToUint64(VK_NULL_HANDLE))) return false;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto object_type = ConvertCoreObjectToVulkanObject(core_object_type);
 
     if (object_type == kVulkanObjectTypeDevice) {
@@ -83,8 +91,13 @@ void ObjectLifetimes::AllocateCommandBuffer(const VkCommandPool command_pool, co
                                             VkCommandBufferLevel level) {
     auto new_obj_node = std::make_shared<ObjTrackState>();
     new_obj_node->object_type = kVulkanObjectTypeCommandBuffer;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    new_obj_node->handle = HandleToUintPtr(command_buffer);
+    new_obj_node->parent_object = HandleToUintPtr(command_pool);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     new_obj_node->handle = HandleToUint64(command_buffer);
     new_obj_node->parent_object = HandleToUint64(command_pool);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (level == VK_COMMAND_BUFFER_LEVEL_SECONDARY) {
         new_obj_node->status = OBJSTATUS_COMMAND_BUFFER_SECONDARY;
     } else {
@@ -97,14 +110,26 @@ void ObjectLifetimes::AllocateCommandBuffer(const VkCommandPool command_pool, co
 
 bool ObjectLifetimes::ValidateCommandBuffer(VkCommandPool command_pool, VkCommandBuffer command_buffer) const {
     bool skip = false;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t object_handle = HandleToUintPtr(command_buffer);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t object_handle = HandleToUint64(command_buffer);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto iter = object_map[kVulkanObjectTypeCommandBuffer].find(object_handle);
     if (iter != object_map[kVulkanObjectTypeCommandBuffer].end()) {
         auto node = iter->second;
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+        if (node->parent_object != HandleToUintPtr(command_pool)) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
         if (node->parent_object != HandleToUint64(command_pool)) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             // We know that the parent *must* be a command pool
+#if defined(__CHERI_PURE_CAPABILITY__)
+            const auto parent_pool = CastFromUintPtr<VkCommandPool>(node->parent_object);
+#else // defined(__CHERI_PURE_CAPABILITY__)
             const auto parent_pool = CastFromUint64<VkCommandPool>(node->parent_object);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             const LogObjectList objlist(command_buffer, parent_pool, command_pool);
             skip |= LogError(objlist, "VUID-vkFreeCommandBuffers-pCommandBuffers-parent",
                              "FreeCommandBuffers is attempting to free %s belonging to %s from %s).",
@@ -122,26 +147,51 @@ void ObjectLifetimes::AllocateDescriptorSet(VkDescriptorPool descriptor_pool, Vk
     auto new_obj_node = std::make_shared<ObjTrackState>();
     new_obj_node->object_type = kVulkanObjectTypeDescriptorSet;
     new_obj_node->status = OBJSTATUS_NONE;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    new_obj_node->handle = HandleToUintPtr(descriptor_set);
+    new_obj_node->parent_object = HandleToUintPtr(descriptor_pool);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     new_obj_node->handle = HandleToUint64(descriptor_set);
     new_obj_node->parent_object = HandleToUint64(descriptor_pool);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     InsertObject(object_map[kVulkanObjectTypeDescriptorSet], descriptor_set, kVulkanObjectTypeDescriptorSet, new_obj_node);
     num_objects[kVulkanObjectTypeDescriptorSet]++;
     num_total_objects++;
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUintPtr(descriptor_pool));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUint64(descriptor_pool));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (itr != object_map[kVulkanObjectTypeDescriptorPool].end()) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        itr->second->child_objects->insert(HandleToUintPtr(descriptor_set));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         itr->second->child_objects->insert(HandleToUint64(descriptor_set));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     }
 }
 
 bool ObjectLifetimes::ValidateDescriptorSet(VkDescriptorPool descriptor_pool, VkDescriptorSet descriptor_set) const {
     bool skip = false;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t object_handle = HandleToUintPtr(descriptor_set);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t object_handle = HandleToUint64(descriptor_set);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     auto ds_item = object_map[kVulkanObjectTypeDescriptorSet].find(object_handle);
     if (ds_item != object_map[kVulkanObjectTypeDescriptorSet].end()) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        if (ds_item->second->parent_object != HandleToUintPtr(descriptor_pool)) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
         if (ds_item->second->parent_object != HandleToUint64(descriptor_pool)) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             // We know that the parent *must* be a descriptor pool
+#if defined(__CHERI_PURE_CAPABILITY__)
+            const auto parent_pool = CastFromUintPtr<VkDescriptorPool>(ds_item->second->parent_object);
+#else // defined(__CHERI_PURE_CAPABILITY__)
             const auto parent_pool = CastFromUint64<VkDescriptorPool>(ds_item->second->parent_object);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             const LogObjectList objlist(descriptor_set, parent_pool, descriptor_pool);
             skip |= LogError(objlist, "VUID-vkFreeDescriptorSets-pDescriptorSets-parent",
                              "FreeDescriptorSets is attempting to free %s"
@@ -254,7 +304,11 @@ bool ObjectLifetimes::PreCallValidateCmdPushDescriptorSetKHR(VkCommandBuffer com
 
 void ObjectLifetimes::CreateQueue(VkQueue vkObj) {
     std::shared_ptr<ObjTrackState> p_obj_node = NULL;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    auto queue_item = object_map[kVulkanObjectTypeQueue].find(HandleToUintPtr(vkObj));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     auto queue_item = object_map[kVulkanObjectTypeQueue].find(HandleToUint64(vkObj));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (queue_item == object_map[kVulkanObjectTypeQueue].end()) {
         p_obj_node = std::make_shared<ObjTrackState>();
         InsertObject(object_map[kVulkanObjectTypeQueue], vkObj, kVulkanObjectTypeQueue, p_obj_node);
@@ -265,16 +319,29 @@ void ObjectLifetimes::CreateQueue(VkQueue vkObj) {
     }
     p_obj_node->object_type = kVulkanObjectTypeQueue;
     p_obj_node->status = OBJSTATUS_NONE;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    p_obj_node->handle = HandleToUintPtr(vkObj);
+#else // defined(__CHERI_PURE_CAPABILITY__)
     p_obj_node->handle = HandleToUint64(vkObj);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 }
 
 void ObjectLifetimes::CreateSwapchainImageObject(VkImage swapchain_image, VkSwapchainKHR swapchain) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+    if (!swapchainImageMap.contains(HandleToUintPtr(swapchain_image))) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
     if (!swapchainImageMap.contains(HandleToUint64(swapchain_image))) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         auto new_obj_node = std::make_shared<ObjTrackState>();
         new_obj_node->object_type = kVulkanObjectTypeImage;
         new_obj_node->status = OBJSTATUS_NONE;
+#if defined(__CHERI_PURE_CAPABILITY__)
+        new_obj_node->handle = HandleToUintPtr(swapchain_image);
+        new_obj_node->parent_object = HandleToUintPtr(swapchain);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         new_obj_node->handle = HandleToUint64(swapchain_image);
         new_obj_node->parent_object = HandleToUint64(swapchain);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         InsertObject(swapchainImageMap, swapchain_image, kVulkanObjectTypeImage, new_obj_node);
     }
 }
@@ -466,7 +533,11 @@ bool ObjectLifetimes::PreCallValidateResetDescriptorPool(VkDevice device, VkDesc
         ValidateObject(descriptorPool, kVulkanObjectTypeDescriptorPool, false,
                        "VUID-vkResetDescriptorPool-descriptorPool-parameter", "VUID-vkResetDescriptorPool-descriptorPool-parent");
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUintPtr(descriptorPool));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUint64(descriptorPool));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (itr != object_map[kVulkanObjectTypeDescriptorPool].end()) {
         auto pool_node = itr->second;
         for (auto set : *pool_node->child_objects) {
@@ -482,7 +553,11 @@ void ObjectLifetimes::PreCallRecordResetDescriptorPool(VkDevice device, VkDescri
     auto lock = WriteSharedLock();
     // A DescriptorPool's descriptor sets are implicitly deleted when the pool is reset. Remove this pool's descriptor sets from
     // our descriptorSet map.
+#if defined(__CHERI_PURE_CAPABILITY__)
+    auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUintPtr(descriptorPool));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUint64(descriptorPool));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (itr != object_map[kVulkanObjectTypeDescriptorPool].end()) {
         auto pool_node = itr->second;
         for (auto set : *pool_node->child_objects) {
@@ -498,7 +573,11 @@ bool ObjectLifetimes::PreCallValidateBeginCommandBuffer(VkCommandBuffer command_
     skip |= ValidateObject(command_buffer, kVulkanObjectTypeCommandBuffer, false,
                            "VUID-vkBeginCommandBuffer-commandBuffer-parameter", kVUIDUndefined);
     if (begin_info) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        auto iter = object_map[kVulkanObjectTypeCommandBuffer].find(HandleToUintPtr(command_buffer));
+#else // defined(__CHERI_PURE_CAPABILITY__)
         auto iter = object_map[kVulkanObjectTypeCommandBuffer].find(HandleToUint64(command_buffer));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         if (iter != object_map[kVulkanObjectTypeCommandBuffer].end()) {
             auto node = iter->second;
             if ((begin_info->pInheritanceInfo) && (node->status & OBJSTATUS_COMMAND_BUFFER_SECONDARY) &&
@@ -722,7 +801,11 @@ void ObjectLifetimes::PreCallRecordDestroySwapchainKHR(VkDevice device, VkSwapch
     RecordDestroyObject(swapchain, kVulkanObjectTypeSwapchainKHR);
 
     auto snapshot = swapchainImageMap.snapshot(
+#if defined(__CHERI_PURE_CAPABILITY__)
+        [swapchain](const std::shared_ptr<ObjTrackState> &pNode) { return pNode->parent_object == HandleToUintPtr(swapchain); });
+#else // defined(__CHERI_PURE_CAPABILITY__)
         [swapchain](const std::shared_ptr<ObjTrackState> &pNode) { return pNode->parent_object == HandleToUint64(swapchain); });
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     for (const auto &itr : snapshot) {
         swapchainImageMap.erase(itr.first);
     }
@@ -748,14 +831,22 @@ void ObjectLifetimes::PreCallRecordFreeDescriptorSets(VkDevice device, VkDescrip
                                                       const VkDescriptorSet *pDescriptorSets) {
     auto lock = WriteSharedLock();
     std::shared_ptr<ObjTrackState> pool_node = nullptr;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUintPtr(descriptorPool));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUint64(descriptorPool));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (itr != object_map[kVulkanObjectTypeDescriptorPool].end()) {
         pool_node = itr->second;
     }
     for (uint32_t i = 0; i < descriptorSetCount; i++) {
         RecordDestroyObject(pDescriptorSets[i], kVulkanObjectTypeDescriptorSet);
         if (pool_node) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+            pool_node->child_objects->erase(HandleToUintPtr(pDescriptorSets[i]));
+#else // defined(__CHERI_PURE_CAPABILITY__)
             pool_node->child_objects->erase(HandleToUint64(pDescriptorSets[i]));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         }
     }
 }
@@ -769,7 +860,11 @@ bool ObjectLifetimes::PreCallValidateDestroyDescriptorPool(VkDevice device, VkDe
                            "VUID-vkDestroyDescriptorPool-descriptorPool-parameter",
                            "VUID-vkDestroyDescriptorPool-descriptorPool-parent");
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUintPtr(descriptorPool));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUint64(descriptorPool));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (itr != object_map[kVulkanObjectTypeDescriptorPool].end()) {
         auto pool_node = itr->second;
         for (auto set : *pool_node->child_objects) {
@@ -785,7 +880,11 @@ bool ObjectLifetimes::PreCallValidateDestroyDescriptorPool(VkDevice device, VkDe
 void ObjectLifetimes::PreCallRecordDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool,
                                                          const VkAllocationCallbacks *pAllocator) {
     auto lock = WriteSharedLock();
+#if defined(__CHERI_PURE_CAPABILITY__)
+    auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUintPtr(descriptorPool));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     auto itr = object_map[kVulkanObjectTypeDescriptorPool].find(HandleToUint64(descriptorPool));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     if (itr != object_map[kVulkanObjectTypeDescriptorPool].end()) {
         auto pool_node = itr->second;
         for (auto set : *pool_node->child_objects) {
@@ -804,7 +903,11 @@ bool ObjectLifetimes::PreCallValidateDestroyCommandPool(VkDevice device, VkComma
                            "VUID-vkDestroyCommandPool-commandPool-parent");
 
     auto snapshot = object_map[kVulkanObjectTypeCommandBuffer].snapshot(
+#if defined(__CHERI_PURE_CAPABILITY__)
+        [commandPool](const std::shared_ptr<ObjTrackState> &pNode) { return pNode->parent_object == HandleToUintPtr(commandPool); });
+#else // defined(__CHERI_PURE_CAPABILITY__)
         [commandPool](const std::shared_ptr<ObjTrackState> &pNode) { return pNode->parent_object == HandleToUint64(commandPool); });
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     for (const auto &itr : snapshot) {
         auto node = itr.second;
         skip |= ValidateCommandBuffer(commandPool, reinterpret_cast<VkCommandBuffer>(itr.first));
@@ -819,7 +922,11 @@ bool ObjectLifetimes::PreCallValidateDestroyCommandPool(VkDevice device, VkComma
 void ObjectLifetimes::PreCallRecordDestroyCommandPool(VkDevice device, VkCommandPool commandPool,
                                                       const VkAllocationCallbacks *pAllocator) {
     auto snapshot = object_map[kVulkanObjectTypeCommandBuffer].snapshot(
+#if defined(__CHERI_PURE_CAPABILITY__)
+        [commandPool](const std::shared_ptr<ObjTrackState> &pNode) { return pNode->parent_object == HandleToUintPtr(commandPool); });
+#else // defined(__CHERI_PURE_CAPABILITY__)
         [commandPool](const std::shared_ptr<ObjTrackState> &pNode) { return pNode->parent_object == HandleToUint64(commandPool); });
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     // A CommandPool's cmd buffers are implicitly deleted when pool is deleted. Remove this pool's cmdBuffers from cmd buffer map.
     for (const auto &itr : snapshot) {
         RecordDestroyObject(reinterpret_cast<VkCommandBuffer>(itr.first), kVulkanObjectTypeCommandBuffer);

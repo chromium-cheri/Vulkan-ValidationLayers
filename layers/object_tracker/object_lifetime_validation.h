@@ -35,14 +35,27 @@ enum ObjectStatusFlagBits {
 
 // Object and state information structure
 struct ObjTrackState {
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t handle;                                              // Object handle (new)
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t handle;                                               // Object handle (new)
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VulkanObjectType object_type;                                  // Object type identifier
     ObjectStatusFlags status;                                      // Object state
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t parent_object;                                        // Parent object
+    std::unique_ptr<vvl::unordered_set<uintptr_t> > child_objects;  // Child objects (used for VkDescriptorPool only)
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t parent_object;                                        // Parent object
     std::unique_ptr<vvl::unordered_set<uint64_t> > child_objects;  // Child objects (used for VkDescriptorPool only)
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 };
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+typedef vl_concurrent_unordered_map<uintptr_t, std::shared_ptr<ObjTrackState>, 6> object_map_type;
+#else // defined(__CHERI_PURE_CAPABILITY__)
 typedef vl_concurrent_unordered_map<uint64_t, std::shared_ptr<ObjTrackState>, 6> object_map_type;
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
 class ObjectLifetimes : public ValidationObject {
   public:
@@ -78,13 +91,21 @@ class ObjectLifetimes : public ValidationObject {
 
     template <typename T1>
     void InsertObject(object_map_type &map, T1 object, VulkanObjectType object_type, std::shared_ptr<ObjTrackState> pNode) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        uintptr_t object_handle = HandleToUintPtr(object);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         uint64_t object_handle = HandleToUint64(object);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         const bool inserted = map.insert(object_handle, pNode);
         if (!inserted) {
             // The object should not already exist. If we couldn't add it to the map, there was probably
             // a race condition in the app. Report an error and move on.
             (void)LogError(object, kVUID_ObjectTracker_Info,
+#if defined(__CHERI_PURE_CAPABILITY__)
+                           "Couldn't insert %s Object 0x%" PRIxPTR
+#else // defined(__CHERI_PURE_CAPABILITY__)
                            "Couldn't insert %s Object 0x%" PRIxLEAST64
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                            ", already existed. This should not happen and may indicate a "
                            "race condition in the application.",
                            object_string[object_type], object_handle);
@@ -112,7 +133,11 @@ class ObjectLifetimes : public ValidationObject {
     bool ValidateDescriptorSet(VkDescriptorPool descriptor_pool, VkDescriptorSet descriptor_set) const;
     bool ValidateSamplerObjects(const VkDescriptorSetLayoutCreateInfo *pCreateInfo) const;
     bool ValidateDescriptorWrite(VkWriteDescriptorSet const *desc, bool isPush) const;
+#if defined(__CHERI_PURE_CAPABILITY__)
+    bool ValidateAnonymousObject(uintptr_t object, VkObjectType core_object_type, bool null_allowed, const char *invalid_handle_code,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     bool ValidateAnonymousObject(uint64_t object, VkObjectType core_object_type, bool null_allowed, const char *invalid_handle_code,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                                  const char *wrong_device_code) const;
     bool ValidateAccelerationStructures(const char *dst_handle_vuid, uint32_t count,
                                         const VkAccelerationStructureBuildGeometryInfoKHR *infos) const;
@@ -126,7 +151,11 @@ class ObjectLifetimes : public ValidationObject {
         return nullptr;
     };
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    bool CheckObjectValidity(uintptr_t object_handle, VulkanObjectType object_type, bool null_allowed,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     bool CheckObjectValidity(uint64_t object_handle, VulkanObjectType object_type, bool null_allowed,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                              const char *invalid_handle_code, const char *wrong_device_code) const {
         // Look for object in object map
         if (!object_map[object_type].contains(object_handle)) {
@@ -146,7 +175,11 @@ class ObjectLifetimes : public ValidationObject {
                                     // Object found on other device, report an error if object has a device parent error code
                                     if ((wrong_device_code != kVUIDUndefined) && (object_type != kVulkanObjectTypeSurfaceKHR)) {
                                         return LogError(instance, wrong_device_code,
+#if defined(__CHERI_PURE_CAPABILITY__)
+                                                        "Object 0x%" PRIxPTR
+#else // defined(__CHERI_PURE_CAPABILITY__)
                                                         "Object 0x%" PRIxLEAST64
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                                                         " of type %s"
                                                         " was not created, allocated or retrieved from the correct device.",
                                                         object_handle, object_string[object_type]);
@@ -160,7 +193,11 @@ class ObjectLifetimes : public ValidationObject {
                     }
                 }
                 // Report an error if object was not found anywhere
+#if defined(__CHERI_PURE_CAPABILITY__)
+                return LogError(instance, invalid_handle_code, "Invalid %s Object 0x%" PRIxPTR ".", object_string[object_type],
+#else // defined(__CHERI_PURE_CAPABILITY__)
                 return LogError(instance, invalid_handle_code, "Invalid %s Object 0x%" PRIxLEAST64 ".", object_string[object_type],
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                                 object_handle);
             }
         }
@@ -178,12 +215,20 @@ class ObjectLifetimes : public ValidationObject {
             return ValidateDeviceObject(VulkanTypedHandle(object, object_type), invalid_handle_code, wrong_device_code);
         }
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+        return CheckObjectValidity(HandleToUintPtr(object), object_type, null_allowed, invalid_handle_code, wrong_device_code);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         return CheckObjectValidity(HandleToUint64(object), object_type, null_allowed, invalid_handle_code, wrong_device_code);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     }
 
     template <typename T1>
     void CreateObject(T1 object, VulkanObjectType object_type, const VkAllocationCallbacks *pAllocator) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        uintptr_t object_handle = HandleToUintPtr(object);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         uint64_t object_handle = HandleToUint64(object);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         const bool custom_allocator = (pAllocator != nullptr);
         if (!object_map[object_type].contains(object_handle)) {
             auto pNewObjNode = std::make_shared<ObjTrackState>();
@@ -196,20 +241,33 @@ class ObjectLifetimes : public ValidationObject {
             num_total_objects++;
 
             if (object_type == kVulkanObjectTypeDescriptorPool) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+                pNewObjNode->child_objects.reset(new vvl::unordered_set<uintptr_t>);
+#else // defined(__CHERI_PURE_CAPABILITY__)
                 pNewObjNode->child_objects.reset(new vvl::unordered_set<uint64_t>);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             }
         }
     }
 
+#if defined(__CHERI_PURE_CAPABILITY__)
+    void DestroyObjectSilently(uintptr_t object, VulkanObjectType object_type) {
+        assert(object != static_cast<uintptr_t>(VK_NULL_HANDLE));
+#else // defined(__CHERI_PURE_CAPABILITY__)
     void DestroyObjectSilently(uint64_t object, VulkanObjectType object_type) {
         assert(object != HandleToUint64(VK_NULL_HANDLE));
+#endif // defined(__CHERI_PURE_CAPABILITY__)
 
         auto item = object_map[object_type].pop(object);
         if (item == object_map[object_type].end()) {
             // We've already checked that the object exists. If we couldn't find and atomically remove it
             // from the map, there must have been a race condition in the app. Report an error and move on.
             (void)LogError(device, kVUID_ObjectTracker_Info,
+#if defined(__CHERI_PURE_CAPABILITY__)
+                           "Couldn't destroy %s Object 0x%" PRIxPTR
+#else // defined(__CHERI_PURE_CAPABILITY__)
                            "Couldn't destroy %s Object 0x%" PRIxLEAST64
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                            ", not found. This should not happen and may indicate a race condition in the application.",
                            object_string[object_type], object);
 
@@ -225,8 +283,13 @@ class ObjectLifetimes : public ValidationObject {
 
     template <typename T1>
     void RecordDestroyObject(T1 object_handle, VulkanObjectType object_type) {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        auto object = HandleToUintPtr(object_handle);
+        if (object != static_cast<uintptr_t>(VK_NULL_HANDLE)) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
         auto object = HandleToUint64(object_handle);
         if (object != HandleToUint64(VK_NULL_HANDLE)) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             if (object_map[object_type].contains(object)) {
                 DestroyObjectSilently(object, object_type);
             }
@@ -236,12 +299,20 @@ class ObjectLifetimes : public ValidationObject {
     template <typename T1>
     bool ValidateDestroyObject(T1 object_handle, VulkanObjectType object_type, const VkAllocationCallbacks *pAllocator,
                                const char *expected_custom_allocator_code, const char *expected_default_allocator_code) const {
+#if defined(__CHERI_PURE_CAPABILITY__)
+        auto object = HandleToUintPtr(object_handle);
+#else // defined(__CHERI_PURE_CAPABILITY__)
         auto object = HandleToUint64(object_handle);
+#endif // defined(__CHERI_PURE_CAPABILITY__)
         const bool custom_allocator = pAllocator != nullptr;
         bool skip = false;
 
         if ((expected_custom_allocator_code != kVUIDUndefined || expected_default_allocator_code != kVUIDUndefined) &&
+#if defined(__CHERI_PURE_CAPABILITY__)
+            object != static_cast<uintptr_t>(VK_NULL_HANDLE)) {
+#else // defined(__CHERI_PURE_CAPABILITY__)
             object != HandleToUint64(VK_NULL_HANDLE)) {
+#endif // defined(__CHERI_PURE_CAPABILITY__)
             auto item = object_map[object_type].find(object);
             if (item != object_map[object_type].end()) {
                 auto allocated_with_custom = (item->second->status & OBJSTATUS_CUSTOM_ALLOCATOR) ? true : false;
@@ -249,13 +320,21 @@ class ObjectLifetimes : public ValidationObject {
                     // This check only verifies that custom allocation callbacks were provided to both Create and Destroy calls,
                     // it cannot verify that these allocation callbacks are compatible with each other.
                     skip |= LogError(object_handle, expected_custom_allocator_code,
+#if defined(__CHERI_PURE_CAPABILITY__)
+                                     "Custom allocator not specified while destroying %s obj 0x%" PRIxPTR
+#else // defined(__CHERI_PURE_CAPABILITY__)
                                      "Custom allocator not specified while destroying %s obj 0x%" PRIxLEAST64
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                                      " but specified at creation.",
                                      object_string[object_type], object);
 
                 } else if (!allocated_with_custom && custom_allocator && expected_default_allocator_code != kVUIDUndefined) {
                     skip |= LogError(object_handle, expected_default_allocator_code,
+#if defined(__CHERI_PURE_CAPABILITY__)
+                                     "Custom allocator specified while destroying %s obj 0x%" PRIxPTR
+#else // defined(__CHERI_PURE_CAPABILITY__)
                                      "Custom allocator specified while destroying %s obj 0x%" PRIxLEAST64
+#endif // defined(__CHERI_PURE_CAPABILITY__)
                                      " but not specified at creation.",
                                      object_string[object_type], object);
                 }

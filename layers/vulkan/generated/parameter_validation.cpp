@@ -9632,7 +9632,11 @@ bool StatelessValidation::PreCallValidateDestroyPrivateDataSlot(
 bool StatelessValidation::PreCallValidateSetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) const {
     bool skip = false;
@@ -9644,7 +9648,11 @@ bool StatelessValidation::PreCallValidateSetPrivateData(
 bool StatelessValidation::PreCallValidateGetPrivateData(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) const {
     bool skip = false;
@@ -17949,7 +17957,11 @@ bool StatelessValidation::PreCallValidateDestroyPrivateDataSlotEXT(
 bool StatelessValidation::PreCallValidateSetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t                                    data) const {
     bool skip = false;
@@ -17963,7 +17975,11 @@ bool StatelessValidation::PreCallValidateSetPrivateDataEXT(
 bool StatelessValidation::PreCallValidateGetPrivateDataEXT(
     VkDevice                                    device,
     VkObjectType                                objectType,
+#if defined(__CHERI_PURE_CAPABILITY__)
+    uintptr_t                                   objectHandle,
+#else // defined(__CHERI_PURE_CAPABILITY__)
     uint64_t                                    objectHandle,
+#endif // defined(__CHERI_PURE_CAPABILITY__)
     VkPrivateDataSlot                           privateDataSlot,
     uint64_t*                                   pData) const {
     bool skip = false;
